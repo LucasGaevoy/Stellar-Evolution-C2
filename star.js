@@ -46,7 +46,6 @@ const star = new THREE.Mesh(
 star.position.y = 0.3;
 scene.add(star);
 
-// ---- Mass → Radius (Sun-sized at 1 Msun) ----
 function mainSequenceRadius(M) {
   if (M <= 1) return Math.pow(M, 0.8);
   if (M <= 10) return Math.pow(M, 0.57);
@@ -64,7 +63,6 @@ function updateFromMass() {
 slider.addEventListener("input", updateFromMass);
 updateFromMass();
 
-// ---- Simple controls ----
 let dragging = false;
 let lastX = 0;
 let lastY = 0;
