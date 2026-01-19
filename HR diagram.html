@@ -25,11 +25,12 @@
       font-weight: 600;
     }
 
-    /*h2{
+    h3{
       text-align: center;
-      color: #379bb9;
-      margin-top: 20px;
-    }*/
+      color: #000000;
+      margin-top: 7px;
+      margin-bottom: 5px;
+    }
 
     .container{
       display: flex;
@@ -42,7 +43,6 @@
       background-color: #e8f0f86a;
       border-radius: 12px;
       padding: 15px;
-      width: 630px;
       height: 540px;
       box-shadow: 2px 2px 8px rgba(182, 182, 182, 0.486);
     }
@@ -53,6 +53,9 @@
       display: flex;
       flex-direction: column;
       padding: 15px;
+      flex: 3;
+      height: 540px;
+      min-width: 0;
     }
 
     .info{
@@ -148,6 +151,12 @@
     background: #759ec0;
     cursor: pointer;
     }
+
+    #hr-diagram{
+      flex: 2;
+      height: 540px;
+      min-width:0;
+    }
   </style>
 </head>
 
@@ -162,9 +171,9 @@
     <div id="star-view" class="panel">
       
       <div class="info">
-        Luminosity: <br>
-        Spectral type: <br>
-        Evolutionary stage: <br>
+        Absolute Magnitude: <br>
+        Surface Temperature: <br>
+        Evolutionary Stage: <br>
         Age: <br>
       </div>
 
@@ -213,7 +222,8 @@
     </div>
 
     <div id="hr-diagram" class="panel">
-      HR diagram
+      <h3>HR diagram</h3>
+      <canvas id="HR" width="400" height="480"></canvas>
     </div>
 
   </div>
@@ -298,6 +308,85 @@
       })(i);
     }
     
+    const canvas = document.getElementById("HR");
+    const ctx = canvas.getContext("2d");
+    
+    const cssWidth = 400;
+    const cssHeight = 480;
+    canvas.style.width = cssWidth + "px";
+    canvas.style.Height = cssHeight + "px";
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = cssWidth * dpr;
+    canvas.height = cssHeight * dpr;
+    ctx.scale(dpr,dpr);
+    
+
+    const margin = {top:30, right:20, bottom:40, left:40};
+    const TotalWidth = cssWidth - margin.left - margin.right;
+    const TotalHeight = cssHeight - margin.top - margin.bottom;
+    const TempMin = 2500;
+    const TempMax = 37500;
+    const MagMin = -10;
+    const MagMax = 15;
+
+    function XAxis(Temp){
+      return margin.left + TotalWidth * (TempMax - Temp) / (TempMax - TempMin);
+    }
+    function YAxis(Mag){
+      return margin.top + TotalHeight * (MagMax - Mag) / (MagMax - MagMin);
+    }
+
+    ctx.clearRect(0,0,cssWidth,cssHeight);
+
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(margin.left,margin.top + TotalHeight);
+    ctx.lineTo(margin.left + TotalWidth, margin.top + TotalHeight);
+    ctx.moveTo(margin.left,margin.top);
+    ctx.lineTo(margin.left,margin.top + TotalHeight);
+    ctx.stroke();
+
+    ctx.textAlign = "center";
+    ctx.fillText("Surface Temperature (K)", margin.left + TotalWidth/2, margin.top + TotalHeight + 40);
+    ctx.save();
+    ctx.translate(20,margin.top + TotalHeight/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.textAlign = "center";
+    ctx.fillText("Absolute Magnitude",0,0);
+    ctx.restore();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for(let t=TempMin; t<=TempMax; t+=5000){
+      let x = XAxis(t);
+      ctx.moveTo(x,margin.top + TotalHeight);
+      ctx.lineTo(x,margin.top + TotalHeight +5);
+      ctx.stroke();
+      ctx.fillStyle = "#000";
+      ctx.fillText(t,x,margin.top + TotalHeight + 8);
+      ctx.strokeStyle = "#ccc";
+      ctx.beginPath();
+      ctx.moveTo(x,margin.top);
+      ctx.lineTo(x,margin.top + TotalHeight);
+      ctx.stroke();
+    }
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for(let M=MagMin; M<=MagMax; M+=5){
+      let y = YAxis(M);
+      ctx.moveTo(margin.left-5,y);
+      ctx.lineTo(margin.left,y);
+      ctx.stroke();
+      ctx.fillStyle = "#000";
+      ctx.fillText(M,margin.left-8,y);
+      ctx.strokeStyle = "#ccc";
+      ctx.beginPath();
+      ctx.moveTo(margin.left-5,y);
+      ctx.lineTo(margin.left + TotalWidth,y);
+      ctx.stroke();
+    }
+
   </script>
 
 </div>
