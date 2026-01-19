@@ -262,7 +262,30 @@
   <canvas id="diagram" width="500" height="500"></canvas>
 
   <script>
-    var canvas=document.getElementById("")
+    var canvas=document.getElementById("diagram")
+    var ctx=canvas.getContext('2d');
+    ctx.beginPath();
+    ctx.moveTo(20,480);
+    ctx.lineTo(480,480);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(50,350);
+    ctx.lineTo(50,50);
+    ctx.stroke();
+    for(var i=0; i<=500; i+=20){
+      ctx.beginPath();
+      ctx.moveTo(20+i,345);
+      ctx.lineTo(20+i,355);
+      ctx.stroke();
+      ctx.fillText(i,45+i,370);
+    }
+    for (var i=0;i<=500;i+=20){
+      ctx.beginPath();
+      ctx.moveTo(45,350-i);
+      ctx.lineTp(55,350-i);
+      ctx.stroke();
+      ctx.fillText(i,20,355-i); 
+    }
   </script>
 
 </div>
