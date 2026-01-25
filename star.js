@@ -1,23 +1,19 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 
-// ---- DOM ----
 const container = document.getElementById("scene");
-const slider = document.getElementById("mass");
-const massValue = document.getElementById("massValue");
+const slider = document.getElementById("MassRange");
+const massInput = document.getElementById("MassInput");
 
 const zoomInBtn = document.getElementById("zoomIn");
 const zoomOutBtn = document.getElementById("zoomOut");
 
-// ---- Scene ----
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0f18);
 
-// ---- Camera ----
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
 camera.position.set(0, 1.5, 7);
 camera.lookAt(0, 0.3, 0);
 
-// ---- Renderer ----
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 container.appendChild(renderer.domElement);
@@ -33,14 +29,14 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
-// ---- Environment (grid floor) ----
+// Environment 
 const grid = new THREE.GridHelper(18, 18);
 grid.position.y = -1.6;
 scene.add(grid);
 
-// ---- Star ----
+// Star
 const star = new THREE.Mesh(
-  new THREE.SphereGeometry(1, 48, 48), // radius = 1 baseline
+  new THREE.SphereGeometry(1, 48, 48),
   new THREE.MeshBasicMaterial({ color: 0xffcc66 })
 );
 star.position.y = 0.3;
@@ -54,15 +50,25 @@ function mainSequenceRadius(M) {
 
 function updateFromMass() {
   const M = parseFloat(slider.value);
-  massValue.textContent = M.toFixed(1);
+  if (Number.isNaN(M)) return;
 
+  // scale star
   const R = mainSequenceRadius(M);
   star.scale.setScalar(R);
 }
 
+// Listen to BOTH inputs (because your HTML updates them)
 slider.addEventListener("input", updateFromMass);
+massInput.addEventListener("input", () => {
+  const v = parseFloat(massInput.value);
+  if (Number.isNaN(v)) return;
+  slider.value = v;
+  updateFromMass();
+});
+
 updateFromMass();
 
+// --- Drag rotate ---
 let dragging = false;
 let lastX = 0;
 let lastY = 0;
@@ -73,7 +79,7 @@ renderer.domElement.addEventListener("mousedown", (e) => {
   lastY = e.clientY;
 });
 
-window.addEventListener("mouseup", () => dragging = false);
+window.addEventListener("mouseup", () => (dragging = false));
 
 window.addEventListener("mousemove", (e) => {
   if (!dragging) return;
@@ -86,6 +92,7 @@ window.addEventListener("mousemove", (e) => {
   star.rotation.x += dy * 0.01;
 });
 
+// --- Scroll zoom ---
 renderer.domElement.addEventListener(
   "wheel",
   (e) => {
@@ -100,11 +107,10 @@ function zoomBy(delta) {
   camera.position.z = THREE.MathUtils.clamp(camera.position.z + delta, 2, 30);
 }
 
-zoomInBtn.addEventListener("click", () => zoomBy(-0.8));
-zoomOutBtn.addEventListener("click", () => zoomBy(+0.8));
+if (zoomInBtn) zoomInBtn.addEventListener("click", () => zoomBy(-0.8));
+if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => zoomBy(+0.8));
 
-
-// ---- Render loop ----
+// --- Render loop ---
 function animate() {
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
