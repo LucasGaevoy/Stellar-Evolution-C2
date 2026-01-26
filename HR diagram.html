@@ -53,6 +53,7 @@
       display: flex;
       flex-direction: column;
       padding: 15px;
+      flex: 3;
     }
 
     .info { flex: 0 0 auto; }
@@ -324,9 +325,9 @@
     const MagMin = -10;
     const MagMax = 15;
 
-function YAxis(Mag){
-  return margin.top + TotalHeight * (MagMax - Mag) / (MagMax - MagMin);
-}
+  function YAxis(Mag){
+    return margin.top + TotalHeight * (MagMax - Mag) / (MagMax - MagMin);
+  }
 
     function XAxis(Temp){
       return margin.left + TotalWidth * (TempMax - Temp) / (TempMax - TempMin);
