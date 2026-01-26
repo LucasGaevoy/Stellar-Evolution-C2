@@ -115,8 +115,33 @@ function animate() {
   requestAnimationFrame(animate);
 }
 animate();
-
+// ------------------ Main Sequence ----------------------
 // Sun is 3.828 * 10^26 W
 // Luminosity is directionally proportional to M^3.5
 // A star double the mass of the Sun will be about 11.3 times as luminous ( 2^3.5)
+// Become slightly more luminous with time, and become cooler, so go from orange to red
+// T is inversily proportional to M^2.5
+// Sun will be in main sequence for about 10 billion years 
+
+// ----------------- REDGIANT PHASE ------------------------
+
+// In redgiant phase; in 0.5 billion years, its radius wil be 1.5 times bigger; 200x in the following 200 million years. | This depends on the mass of the redgiant
+// as again, the lifetime of a redgiant is inversily porotional to the mass.
+// A star with 8 solar masses will be classified as a super red giant, anything below is just a red giant.
+// > 3 solar masses will end up as black holes
+// > 10 solar masses will go supernova in a few million years
+
+// ----------------- DWARF PHASE ---------------------------
+// < 1.4 solar masses will end up as white dwarfs
+// Dwarf stars: white is done in a couple million years; to become brown/black dwarfs, trillions of years is needed
+// Colour of a dwarf star dependent on time and temperature is 
+
+// ---------------- NEUTRON STAR --------------------------
+// > 1.4 but < 3 solar masses will end up as neutron stars
+// 
+// blue-white --> yellow --> orange
+
+// ---------------- BLACK HOLE -----------------------------
+// > 3 solar masses will end up as black holes
+
 
