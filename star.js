@@ -115,21 +115,33 @@ function animate() {
   requestAnimationFrame(animate);
 }
 animate();
+
+// CONSTANTS ----------------------
+// Configure M = 1 on slider to be the mass of the Sun
+// Spin of a star is highly dependent on its mass, and stars with solar masses below 1 will tend to spin a lot slower. Spin is also lost over time ( magnetic braking)
+
+// ------------------- NEBULA PHASE/PROTOSTAR -----------------------
+// If mass < 0.08 solar masses, it will become a brown dwarf
+// Doesn't use hydrogen/helium stores, gravitional potential energy is converted to thermal energy
+
 // ------------------ Main Sequence ----------------------
 // Sun is 3.828 * 10^26 W
 // Luminosity is directionally proportional to M^3.5
 // A star double the mass of the Sun will be about 11.3 times as luminous ( 2^3.5)
 // Become slightly more luminous with time, and become cooler, so go from orange to red
-// T is inversily proportional to M^2.5
+// Lifetime (T) is inversily proportional to M^2.5
 // Sun will be in main sequence for about 10 billion years 
+// Rate of hydrogen loss is inversily proportional to M^2.5
 
 // ----------------- REDGIANT PHASE ------------------------
 
-// In redgiant phase; in 0.5 billion years, its radius wil be 1.5 times bigger; 200x in the following 200 million years. | This depends on the mass of the redgiant
+// In redgiant phase; in 0.5 billion years, its radius wil be 1.5 times bigger; 200x in the following 200 million years. | This depends on the mass of the redgiant, 
+// The sun will spend a billion years in this phase
 // as again, the lifetime of a redgiant is inversily porotional to the mass.
 // A star with 8 solar masses will be classified as a super red giant, anything below is just a red giant.
 // > 3 solar masses will end up as black holes
 // > 10 solar masses will go supernova in a few million years
+// Rate of helium loss is proportional to the lifetime of the redgiant
 
 // ----------------- DWARF PHASE ---------------------------
 // < 1.4 solar masses will end up as white dwarfs
@@ -138,10 +150,11 @@ animate();
 
 // ---------------- NEUTRON STAR --------------------------
 // > 1.4 but < 3 solar masses will end up as neutron stars
-// 
+// pulsar phase is typically around 10-100 million years
 // blue-white --> yellow --> orange
 
 // ---------------- BLACK HOLE -----------------------------
 // > 3 solar masses will end up as black holes
+// Rate of mass loss is -(k/M^2), so small black holes evaporate much faster than large ones
 
 
