@@ -110,9 +110,13 @@ function zoomBy(delta) {
 if (zoomInBtn) zoomInBtn.addEventListener("click", () => zoomBy(-0.8));
 if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => zoomBy(+0.8));
 
-// --- Render loop ---
 function animate() {
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
 animate();
+
+// Sun is 3.828 * 10^26 W
+// Luminosity is directionally proportional to M^3.5
+// A star double the mass of the Sun will be about 11.3 times as luminous ( 2^3.5)
+
