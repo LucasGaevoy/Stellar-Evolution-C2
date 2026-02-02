@@ -13,8 +13,14 @@ msPct.textContent = msSlider.value;
 
 // ---------- DOM ----------
 const container = document.getElementById("scene");
-const slider = document.getElementById("MassRange");
-const massInput = document.getElementById("MassInput");
+/*const slider = document.getElementById("MassRange");
+const massInput = document.getElementById("MassInput");*/
+//I will need to delete these two lines as we're not using the mass slider anymore.
+const massSelect = document.getElementById("MassValues");
+massSelect?.addEventListener("change",()=>{
+  const M = parseFloat(massSelect.value);
+  setMass(M);
+})
 const zoomInBtn = document.getElementById("zoomIn");
 const zoomOutBtn = document.getElementById("zoomOut");
 
@@ -195,7 +201,7 @@ function setMass(M) {
   if (msSlider) updateMainSequence(parseFloat(msSlider.value) / 100);
 }
 // ---------- UI ----------
-function syncFromSlider() {
+/*function syncFromSlider() {
   const M = parseFloat(slider.value);
   setMass(M);
   if (massInput) massInput.value = String(M);
@@ -208,7 +214,7 @@ function syncFromInput() {
 }
 slider?.addEventListener("input", syncFromSlider);
 massInput?.addEventListener("input", syncFromInput);
-
+*/
 // DRAG / ROTATE
 let dragging = false,
   lastX = 0,
@@ -340,7 +346,10 @@ msPct.textContent = msSlider.value;
 postPct.textContent = postSlider.value;
 
 // ---------- START + ANIMATE ----------
-setMass(parseFloat(slider?.value ?? "1"));
+//setMass(parseFloat(slider?.value ?? "1"));
+if (massSelect){
+  setMass(parseFloat(massSelect.value));
+}
 updateMainSequence(parseFloat(msSlider.value) / 100);
 
 let lastT = performance.now();
