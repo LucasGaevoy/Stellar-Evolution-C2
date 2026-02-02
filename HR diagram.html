@@ -70,7 +70,7 @@
       position: absolute;
       top: 15px;
       right: 15px;
-      width: 300px;
+      width: auto;
     }
 
     .mass-label{
@@ -79,10 +79,6 @@
       gap: 6px;
       font-size: 14px;
       margin-bottom: 6px;
-    }
-
-    #MassInput{
-      width: 70px;
     }
 
     .time-box{
@@ -163,17 +159,19 @@
       </div>
       <div id="scene" style="width:100%; height:320px; border-radius:10px; overflow:hidden;"></div>
 
-      <div class="Star"></div>
-
-      <div class="Sun"></div>
-
       <div class="mass-box">
         <div style="display:flex; align-items:center; gap:5px; margin-bottom:5px;">
           <label>Mass:</label>
-          <input type="number" id="MassInput" min="0.1" max="150" step="0.1" value="1">
+          <select id="MassValues" style="width:120px;">
+            <option value="0.1">0.1</option>
+            <option value="0.5">0.5</option>
+            <option value="1">1</option>
+            <option value="3">3</option>
+            <option value="10">10</option>
+            <option value="100">100</option>
+          </select>
           M<sub>&odot;</sub>
         </div>
-        <input type="range" min="0.1" max="150" value="1" step="0.1" class="slider" id="MassRange">
       </div>
 
       <div class="time-box" style="display:flex; flex-direction: column; gap: 10px; margin-top: auto;">
@@ -183,16 +181,16 @@
             Before main sequence: <span class="TimeDemo" id="pct-pre">0</span>%
           </span>
           <input type="range" id="time-pre" min="0" max="100" value="0" class="TimeSlider" style="flex:1;">
-
       </div>
+
         <div style="display:flex; align-items: center; gap: 10px;">
           <button class="PlayButton" id="play-ms" data-index="2" type="button">&#9654;</button>
           <span class="time-label">
             Main sequence: <span class="TimeDemo" id="pct-ms">0</span>%
           </span>
           <input type="range" id="time-ms" min="0" max="100" value="0" class="TimeSlider" style="flex:1;">
-
         </div>
+        
         <div style="display:flex; align-items: center; gap: 10px;">
           <button class="PlayButton" id="play-post" data-index="3" type="button">&#9654;</button>
           <span class="time-label">
@@ -207,8 +205,7 @@
     <div id="hr-diagram" class="panel">
       <h3>HR diagram</h3>
       <canvas id="diagram" width="500" height="500"></canvas>
-
-
+      
 
     </div>
 
@@ -216,38 +213,17 @@
 
   
   <script>
-    const MassSlider = document.getElementById("MassRange");
-    const MassInput = document.getElementById("MassInput");
-    function UpdateMassDisplay(val){
-      val = parseFloat(val);
-      if (isNaN(val)) return null;
-      if (val < 0.1) val = 0.1;
-      if (val > 150) val = 150;
-      MassSlider.value = val;
-      if (val < 1) {
-        MassInput.value = val.toFixed(1);
-      } else{
-        MassInput.value = Math.round(val);
-      }
+    let mass;
+    window.onload = function(){
+      const MassValues = document.getElementById("MassValues");
+      const massReadout = document.getElementById("massReadout");
+      mass = parseFloat(MassValues.value);
+      massReadout.innerText = mass;
+      MassValues.onchange = function(){
+      mass = parseFloat(this.value);
+      massReadout.innerText = mass;
     }
-    MassSlider.oninput = function (){
-      UpdateMassDisplay(this.value);
     }
-    MassInput.oninput = function (){
-      let val = parseFloat(this.value);
-      if(isNaN(val)) return;
-      MassSlider.value = val;
-    }
-    MassInput.onchange = function (){
-      let val = parseFloat(this.value);
-      if (isNaN(val)) return;
-      if (val < 0.1) val = 0.1;
-      if (val > 150) val = 150;
-      MassSlider.value = val;
-      if(val<1) MassInput.value = val.toFixed(1);
-      else MassInput.value = Math.round(val);
-    }
-
     
     const canvas = document.getElementById("diagram");
     const ctx = canvas.getContext("2d");
@@ -268,10 +244,10 @@
     const TempMin = 2500;
     const TempMax = 37500;
     const MagMin = -10;
-    const MagMax = 15;
+    const MagMax = 20;
 
   function YAxis(Mag){
-    return margin.top + TotalHeight * (MagMax - Mag) / (MagMax - MagMin);
+    return margin.top + TotalHeight * (Mag - MagMin) / (MagMax - MagMin);
   }
 
     function XAxis(Temp){
@@ -279,6 +255,15 @@
     }
 
     ctx.clearRect(0,0,cssWidth,cssHeight);
+
+    let grad = ctx.createLinearGradient(margin.left, 0, margin.left + TotalWidth, 0);
+    grad.addColorStop(0,"rgba(0,0,255,0.3)");
+    grad.addColorStop(0.25,"rgba(255,255,255,0.3)");
+    grad.addColorStop(0.5,"rgba(255,255,0,0.3)");
+    grad.addColorStop(0.75,"rgba(255,165,0,0.3)");
+    grad.addColorStop(1,"rgba(255,0,0,0.3)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(margin.left, margin.top, TotalWidth, TotalHeight);
 
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 1;
@@ -289,7 +274,35 @@
     ctx.lineTo(margin.left,margin.top + TotalHeight);
     ctx.stroke();
 
+    function drawOutline(points, label, labelPos){
+      ctx.beginPath();
+      ctx.moveTo(XAxis(points[0][0]),YAxis(points[0][1]));
+      for(let i=1;i<points.length;i++){
+        ctx.lineTo(XAxis(points[i][0]),YAxis(points[i][1]));
+      }
+      ctx.closePath();
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.textAlign = "center";
+      ctx.fillText(label,XAxis(labelPos[0]),YAxis(labelPos[1]));
+    }
+    const MainSequence = [[35000,-5],[30000,-2],[25000,-1],[20000,0],[15000,1],[10000,3],[7000,4],[5000,5],[4000,8],[3000,10]];
+    drawOutline(MainSequence, "Main Sequence", [18000,3]);
+
+    const WhiteDwarf = [[21000,14],[32500,14],[32500,10],[21000,10]];
+    drawOutline(WhiteDwarf, "White Dwarfs", [27000,12.2]);
+
+    const Giants = [[5000,-2],[6000,-1],[7000,0],[6000,2],[5000,1]];
+    drawOutline(Giants, "Giants", [5800,1]);
+
+    const Supergiants = [[12000,-7],[15000,-6],[20000,-5],[18000,-3],[14000,-4]];
+    drawOutline(Supergiants, "Supergiants", [15000,-5]);
+
     ctx.textAlign = "center";
+    ctx.fillStyle = "#000";
     ctx.fillText("Surface Temperature (K)", margin.left + TotalWidth/2, margin.top + TotalHeight + 40);
     ctx.save();
     ctx.translate(20,margin.top + TotalHeight/2);
@@ -300,6 +313,7 @@
 
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
+    ctx.fillStyle = "#000";
     for(let t=TempMin; t<=TempMax; t+=5000){
       let x = XAxis(t);
       ctx.moveTo(x,margin.top + TotalHeight);
@@ -328,6 +342,7 @@
       ctx.lineTo(margin.left + TotalWidth,y);
       ctx.stroke();
     }
+
 
   </script>
 
