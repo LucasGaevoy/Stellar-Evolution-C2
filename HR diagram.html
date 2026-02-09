@@ -220,8 +220,10 @@
       mass = parseFloat(MassValues.value);
       massReadout.innerText = mass;
       MassValues.onchange = function(){
-      mass = parseFloat(this.value);
-      massReadout.innerText = mass;
+        mass = parseFloat(this.value);
+        massReadout.innerText = mass;
+        drawAxes();
+        updateStar(currentStage, currentSliderValue);
     }
     }
     
@@ -241,8 +243,8 @@
     const TotalWidth = cssWidth - margin.left - margin.right;
     const TotalHeight = cssHeight - margin.top - margin.bottom;
 
-    const TempMin = 1000;
-    const TempMax = 75000;
+    /*const TempMin = 1000;
+    const TempMax = 75000;*/
     const MagMin = -15;
     const MagMax = 20;
 
@@ -250,9 +252,9 @@
       return margin.top + TotalHeight * (Mag - MagMin) / (MagMax - MagMin);
     }
 
-    function XAxis(Temp){
+    /*function XAxis(Temp){
       return margin.left + TotalWidth * (TempMax - Temp) / (TempMax - TempMin);
-    }
+    }*/
 
     ctx.clearRect(0,0,cssWidth,cssHeight);
 
@@ -267,7 +269,7 @@
 
     ctx.textAlign = "center";
     ctx.fillStyle = "#000";
-    ctx.fillText("Surface Temperature (K)", margin.left + TotalWidth/2, margin.top + TotalHeight + 40);
+    ctx.fillText("Spectral Type", margin.left + TotalWidth/2, margin.top + TotalHeight + 40);
     ctx.save();
     ctx.translate(20,margin.top + TotalHeight/2);
     ctx.rotate(-Math.PI/2);
@@ -275,10 +277,30 @@
     ctx.fillText("Absolute Magnitude",0,0);
     ctx.restore();
 
+    const spectralTypes = ["O","B","A","F","G","K","M"];
+    function XAxis(index){
+      const step = TotalWidth / (spectralTypes.length -1);
+      return margin.left+index*step;
+    }
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.fillStyle = "#000";
-    for(let t=TempMin; t<=TempMax; t+=9000){
+    for (let i=0; i<spectralTypes.length; i++){
+      const type = spectralTypes[i];
+      const x = XAxis(i);
+      ctx.beginPath();
+      ctx.moveTo(x,margin.top+TotalHeight);
+      ctx.lineTo(x,margin.top+TotalHeight+6);
+      ctx.strokeStyle="#000";
+      ctx.stroke();
+      ctx.fillText(type,x,margin.top+TotalHeight+10);
+      ctx.beginPath();
+      ctx.moveTo(x,margin.top);
+      ctx.lineTo(x,margin.top+TotalHeight);
+      ctx.strokeStyle="#ccc";
+      ctx.stroke();
+    }
+    /*for(let t=TempMin; t<=TempMax; t+=9000){
       let x = XAxis(t);
       ctx.moveTo(x,margin.top + TotalHeight);
       ctx.lineTo(x,margin.top + TotalHeight +5);
@@ -290,7 +312,8 @@
       ctx.moveTo(x,margin.top);
       ctx.lineTo(x,margin.top + TotalHeight);
       ctx.stroke();
-    }
+    }*/
+    
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     for(let M=MagMin; M<=MagMax; M+=5){
@@ -327,12 +350,121 @@
       ctx.fillText(text,0,0);
       ctx.restore();
     }
-    Labels("Main Sequence", [18000,5],Math.PI/4);
-    Labels("White Dwarfs", [23000,13.2]);
-    Labels("Giants", [6400,1]);
-    Labels("Supergiants", [12000,-5]);
-    Labels("Pre-Main Sequence",[8500,4])
+    Labels("Main Sequence", [2,5],Math.PI/4);
+    Labels("White Dwarfs", [1,13.2]);
+    Labels("Giants", [4,1]);
+    Labels("Supergiants", [1,-5]);
+    Labels("Pre-Main Sequence",[3,4])
 
+    const evolutionaryTracks{
+      0.1:{
+        preMS: {start:{x:,y:}, end:{x:,y:}},
+        MS: {start:{x:,y:}, end:{x:,y:}},
+        postMS: {start:{x:,y:}, end:{x:,y:}},
+      }
+      0.5:{
+        preMS: {start:{x:,y:}, end:{x:,y:}},
+        MS: {start:{x:,y:}, end:{x:,y:}},
+        postMS: {start:{x:,y:}, end:{x:,y:}},
+      }
+      1:{
+        preMS: {start:{x:,y:}, end:{x:,y:}},
+        MS: {start:{x:,y:}, end:{x:,y:}},
+        postMS: {start:{x:,y:}, end:{x:,y:}},
+      }
+      3:{
+        preMS: {start:{x:,y:}, end:{x:,y:}},
+        MS: {start:{x:,y:}, end:{x:,y:}},
+        postMS: {start:{x:,y:}, end:{x:,y:}},
+      }
+      10:{
+        preMS: {start:{x:,y:}, end:{x:,y:}},
+        MS: {start:{x:,y:}, end:{x:,y:}},
+        postMS: {start:{x:,y:}, end:{x:,y:}},
+      }
+      100:{
+        preMS: {start:{x:,y:}, end:{x:,y:}},
+        MS: {start:{x:,y:}, end:{x:,y:}},
+        postMS: {start:{x:,y:}, end:{x:,y:}},
+      }
+    };
+
+    let currentStage="MS",currentSliderValue=0;
+    const magReadout = document.getElementById("magReadout");
+    const specReadout = document.getElementById("specReadout");
+
+    function interpolate(p1,p2,t){
+      return{x:p1.x+(p2.x-p1.x)*t, y:p1.y+(p2.y-p1.y)*t};
+    };
+    function drawStar(x,y){
+      ctx.beginPath();
+      ctx.arc(XAxis(x),YAxis(y),5,0,Math.PI*2);
+      ctx.fillStyle="black";
+      ctx.fill();
+    }
+    function updateStar(stage,sliderValue){
+      currentStage=stage; currentSliderValue=sliderValue;
+      const t = sliderValue/100;
+      const track = evolutionaryTracks[mass][stage];
+      const pos = interpolate(track.start, track.end, t);
+      drawAxes();
+      drawStar(pos.x,pos.y);
+      magReadOut.innerText = pos.y.toFixed(1);
+      const specIndex = Math.round(pos.x);
+      specReadout.innerText = spectralTypes[Math.min(specIndex,spectralTypes.length-1)];
+    }
+    const preSlider =document.getElementById("time-pre");
+    const msSlider =document.getElementById("time-ms");
+    const postSlider =document.getElementById("time-post");
+    const pctPre =document.getElementById("pct-pre");
+    const pctMS =document.getElementById("pct-ms");
+    const pctPost =document.getElementById("pct-post");
+
+    preSlider.oninput = function(){
+      msSlider.value = 0;
+      postSlider.value = 0;
+      pctPre.innerText = preSlider.value;
+      updateStar("preMS", preSlider.value);
+    };
+    msSlider.oninput = function(){
+      preSlider.value = 100;
+      postSlider.value = 0;
+      pctMS.innerText = msSlider.value;
+      updateStar("MS", msSlider.value);
+    };
+    postSlider.oninput = function(){
+      preSlider.value = 100;
+      msSlider.value = 100;
+      pctPost.innerText = postSlider.value;
+      updateStar("postMS", postSlider.value);
+    };
+
+    let animating = null;
+    function animateSlider(stage, slider, pctSpan){
+      if(animating) cancelAnimationFrame(animating);
+      function step(){
+        let val = parseFloat(slider.value);
+        if(val>=100) return;
+        slider.value = val+1;
+        pctSpan.innerText = slider.value;
+        updateStar(stage,slider.value);
+        animating=requestAnimationFrame(step);
+      }
+      step();
+    }
+
+    document.getElementById("play-pre").onclick=function(){
+      animateSlider("preMS",preSlider,pctPre);
+    };
+    document.getElementById("play-ms").onclick=function(){
+      animateSlider("MS",msSlider,pctMS);
+    };
+    document.getElementById("play-post").onclick=function(){
+      animateSlider("postMS",postSlider,pctPost);
+    };
+
+    drawAxes();
+    updateStar("MS",0);
   </script>
 
 </div>
