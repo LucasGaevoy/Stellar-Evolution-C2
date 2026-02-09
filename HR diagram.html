@@ -239,7 +239,7 @@
     canvas.height = cssHeight * dpr;
     ctx.scale(dpr,dpr);
     
-    const margin = { top: 30, right: 20, bottom: 40, left: 40 };
+    const margin = {top: 30, right: 20, bottom: 40, left: 40};
     const TotalWidth = cssWidth - margin.left - margin.right;
     const TotalHeight = cssHeight - margin.top - margin.bottom;
 
@@ -260,9 +260,9 @@
 
     let grad = ctx.createLinearGradient(margin.left, 0, margin.left + TotalWidth, 0);
     grad.addColorStop(0,"rgba(0,0,255,0.3)");
-    grad.addColorStop(0.6,"rgba(255,255,255,0.3)");
-    grad.addColorStop(0.75,"rgba(255,255,0,0.3)");
-    grad.addColorStop(0.9,"rgba(255,165,0,0.3)");
+    grad.addColorStop(0.5,"rgba(255,255,255,0.3)");
+    grad.addColorStop(0.72,"rgba(255,255,0,0.3)");
+    grad.addColorStop(0.80,"rgba(255,165,0,0.3)");
     grad.addColorStop(1,"rgba(255,0,0,0.3)");
     ctx.fillStyle = grad;
     ctx.fillRect(margin.left, margin.top, TotalWidth, TotalHeight);
@@ -278,10 +278,13 @@
     ctx.restore();
 
     const spectralTypes = ["O","B","A","F","G","K","M"];
+    const Xpos=[0.1,0.3,0.5,0.6,0.7,0.78,0.88];
     function XAxis(index){
-      const step = TotalWidth / (spectralTypes.length -1);
-      return margin.left+index*step;
+      /*const step = TotalWidth / (spectralTypes.length -1);
+      return margin.left+index*step;*/
+      return Xpos[index] * TotalWidth + margin.left;
     }
+    
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.fillStyle = "#000";
@@ -339,7 +342,7 @@
     ctx.lineTo(margin.left,margin.top + TotalHeight);
     ctx.stroke();
 
-    function Labels(text, pos, angle = 0){
+    function Labels(text, pos, angle=0){
       ctx.save();
       ctx.translate(XAxis(pos[0]), YAxis(pos[1]));
       ctx.rotate(angle);
@@ -350,19 +353,18 @@
       ctx.fillText(text,0,0);
       ctx.restore();
     }
-    Labels("Main Sequence", [2,5],Math.PI/4);
-    Labels("White Dwarfs", [1,13.2]);
-    Labels("Giants", [4,1]);
-    Labels("Supergiants", [1,-5]);
-    Labels("Pre-Main Sequence",[3,4])
+    Labels("Main Sequence", [2,3], Math.PI/4);
+    Labels("White Dwarfs", [1,13]);
+    Labels("Giants", [5,0]);
+    Labels("Supergiants", [3,-6]);
 
-    const evolutionaryTracks{
+    const evolutionaryTracks = {
       0.1:{
-        preMS: {start:{x:,y:}, end:{x:,y:}},
-        MS: {start:{x:,y:}, end:{x:,y:}},
-        postMS: {start:{x:,y:}, end:{x:,y:}},
+        preMS: {start:{x:4, y:5}, end:{x:4,y:0}},
+        MS: {start:{x:4,y:0}, end:{x:4.5,y:-5}},
+        postMS: {start:{x:4.5,y:-5}, end:{x:1,y:-15}},
       }
-      0.5:{
+      /*0.5:{
         preMS: {start:{x:,y:}, end:{x:,y:}},
         MS: {start:{x:,y:}, end:{x:,y:}},
         postMS: {start:{x:,y:}, end:{x:,y:}},
@@ -386,7 +388,7 @@
         preMS: {start:{x:,y:}, end:{x:,y:}},
         MS: {start:{x:,y:}, end:{x:,y:}},
         postMS: {start:{x:,y:}, end:{x:,y:}},
-      }
+      }*/
     };
 
     let currentStage="MS",currentSliderValue=0;
