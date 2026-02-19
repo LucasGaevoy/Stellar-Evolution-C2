@@ -441,30 +441,6 @@
       updateStar("postMS", postSlider.value);
     };
 
-    let animating = null;
-    function animateSlider(stage, slider, pctSpan){
-      if(animating) cancelAnimationFrame(animating);
-      function step(){
-        let val = parseFloat(slider.value);
-        if(val>=100) return;
-        slider.value = val+1;
-        pctSpan.innerText = slider.value;
-        updateStar(stage,slider.value);
-        animating=requestAnimationFrame(step);
-      }
-      step();
-    }
-
-    document.getElementById("play-pre").onclick=function(){
-      animateSlider("preMS",preSlider,pctPre);
-    };
-    document.getElementById("play-ms").onclick=function(){
-      animateSlider("MS",msSlider,pctMS);
-    };
-    document.getElementById("play-post").onclick=function(){
-      animateSlider("postMS",postSlider,pctPost);
-    };
-
     drawAxes();
     updateStar("MS",0);
   </script>

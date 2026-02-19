@@ -69,12 +69,6 @@ function setMass(M) {
 
 massSelect?.addEventListener("change", () => setMass(parseFloat(massSelect.value)));
 
-preSlider?.addEventListener("input", () => {
-  prePct.textContent = preSlider.value;
-  msSlider.value = "0"; msPct.textContent = "0";
-  postSlider.value = "0"; postPct.textContent = "0";
-  applyProtostar((parseFloat(preSlider.value) || 0) / 100);
-});
 
 postSlider?.addEventListener("input", () => (postPct.textContent = postSlider.value));
 
@@ -82,6 +76,20 @@ prePct.textContent = preSlider?.value ?? "0";
 msPct.textContent = msSlider?.value ?? "0";
 postPct.textContent = postSlider?.value ?? "0";
 
+// PRE play/pause controller
+createMsController({
+  slider: preSlider,
+  playBtn: prePlay,
+  pctEl: prePct,
+  onChange01: (f01) => {
+    msSlider.value = "0"; msPct.textContent = "0";
+    postSlider.value = "0"; postPct.textContent = "0";
+    applyProtostar(f01);
+  },
+  intervalMs: 60,
+});
+
+// MS play/pause controller
 createMsController({
   slider: msSlider,
   playBtn: msPlay,
