@@ -73,3 +73,5 @@ export function createMsController({ slider, playBtn, pctEl, onChange01, interva
   pctEl.textContent = slider.value;
   return { setPct, start, stop, isPlaying: () => !!timer };
 }
+
+
