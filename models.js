@@ -65,3 +65,28 @@ export function protostarState(M, f01) {
 
   return { L, T, R, ageYears };
 }
+
+export function postMainSequenceState_0p1(f01) {
+  // f01 = 0..1 across "post-MS" slider
+
+  // Start near end of MS (still red dwarf)
+  const L_start = 0.003;     // solar luminosities (very dim)
+  const T_start = 3100;      // K (cool red dwarf)
+  const R_start = 0.13;      // solar radii
+
+  // End as a cooling white dwarf (teaching exaggeration)
+  const L_end = 0.0003;      // even dimmer
+  const T_end = 9000;        // young WD is hot (blue-white)
+  const R_end = 0.012;       // white dwarf radius ~ Earth size
+
+  // Smooth interpolation
+  const L = L_start + (L_end - L_start) * f01;
+  const T = T_start + (T_end - T_start) * f01;
+  const R = R_start + (R_end - R_start) * f01;
+
+  // Unrealistic timescale, but educational:
+  // say "cooling transition over 100 billion years"
+  const ageYears = 1e11 + f01 * 5e10;
+
+  return { L, T, R, ageYears };
+}
