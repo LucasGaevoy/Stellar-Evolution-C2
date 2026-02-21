@@ -1,6 +1,4 @@
 // ui.js
-// DOM + controllers only (no physics, no THREE)
-
 export function getTimeUI() {
   const sliders = [
     document.getElementById("time-pre"),
@@ -17,11 +15,9 @@ export function getTimeUI() {
     document.getElementById("pct-ms"),
     document.getElementById("pct-post"),
   ];
-
   if (sliders.some(x => !x) || playButtons.some(x => !x) || outputs.some(x => !x)) {
     console.error("Time UI missing:", { sliders, playButtons, outputs });
   }
-
   return { sliders, playButtons, outputs };
 }
 
@@ -39,13 +35,6 @@ export function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v));
 }
 
-/**
- * Generic slider play/pause controller.
- * Keeps:
- *  - slider value
- *  - percent label (pctEl)
- * in sync, and calls onChange01(f) with f in [0,1].
- */
 export function createStageController({
   slider,
   playBtn,
@@ -57,7 +46,6 @@ export function createStageController({
 }) {
   if (!slider || !playBtn || !pctEl) {
     console.error("createStageController missing elements:", { slider, playBtn, pctEl });
-    // Return harmless no-ops so star.js doesn't crash
     const noop = () => {};
     return { setPct: noop, start: noop, stop: noop, isPlaying: () => false };
   }
@@ -74,14 +62,13 @@ export function createStageController({
   function stop() {
     if (timer) clearInterval(timer);
     timer = null;
-    playBtn.innerHTML = "&#9654;"; // play
+    playBtn.innerHTML = "&#9654;";
   }
 
   function start() {
     const current = parseInt(slider.value, 10) || 0;
     if (current >= 100) setPct(loop ? 0 : 0);
-
-    playBtn.innerHTML = "&#9208;"; // pause
+    playBtn.innerHTML = "&#9208;";
     timer = setInterval(() => {
       const v = parseInt(slider.value, 10) || 0;
       if (v >= 100) {
@@ -95,22 +82,16 @@ export function createStageController({
 
   playBtn.addEventListener("click", () => (timer ? stop() : start()));
 
-  // When user drags manually, stop autoplay and apply immediately
   slider.addEventListener("input", () => {
     if (timer) stop();
     setPct(parseInt(slider.value, 10) || 0);
   });
 
-  // Initialize label to current slider value
   pctEl.textContent = slider.value;
 
   return { setPct, start, stop, isPlaying: () => !!timer };
 }
 
-/**
- * Backwards-compatible alias (so you don't have to rename imports).
- * Use it for pre/ms/post equally.
- */
 export function createMsController(opts) {
   return createStageController(opts);
 }
