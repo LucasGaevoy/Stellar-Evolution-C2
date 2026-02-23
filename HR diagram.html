@@ -205,31 +205,24 @@
     <div id="hr-diagram" class="panel">
       <h3>HR diagram</h3>
       <canvas id="diagram" width="500" height="500"></canvas>
-      
-
     </div>
 
   </div>
 
-  
   <script>
-    let mass;
-    window.onload = function(){
-      const MassValues = document.getElementById("MassValues");
-      const massReadout = document.getElementById("massReadout");
-      mass = parseFloat(MassValues.value);
-      massReadout.innerText = mass;
-      MassValues.onchange = function(){
-        mass = parseFloat(this.value);
-        massReadout.innerText = mass;
-        drawAxes();
-        updateStar(currentStage, currentSliderValue);
-    }
-    }
-    
+    import {getTimeUI,getStarReadouts} from "./ui.js";
+
+    let mass=1;
+    let currentStage = "MS";
+    let currentSliderValue = 0;
+    let intervalId = null;
+    const trailPoints = {preMS:[], MS:[], postMS:[]};
+
+    const {sliders, playButtons, outputs} = getTimeUI();
+    const readouts = getStarReadouts();
     const canvas = document.getElementById("diagram");
     const ctx = canvas.getContext("2d");
-    
+
     const cssWidth = 400;
     const cssHeight = 480;
     canvas.style.width = cssWidth + "px";
@@ -238,215 +231,244 @@
     canvas.width = cssWidth * dpr;
     canvas.height = cssHeight * dpr;
     ctx.scale(dpr,dpr);
-    
+
     const margin = {top: 30, right: 20, bottom: 40, left: 40};
     const TotalWidth = cssWidth - margin.left - margin.right;
     const TotalHeight = cssHeight - margin.top - margin.bottom;
-
-    /*const TempMin = 1000;
-    const TempMax = 75000;*/
-    const MagMin = -15;
-    const MagMax = 20;
-
-    function YAxis(Mag){
-      return margin.top + TotalHeight * (Mag - MagMin) / (MagMax - MagMin);
-    }
-
-    /*function XAxis(Temp){
-      return margin.left + TotalWidth * (TempMax - Temp) / (TempMax - TempMin);
-    }*/
-
-    ctx.clearRect(0,0,cssWidth,cssHeight);
-
-    let grad = ctx.createLinearGradient(margin.left, 0, margin.left + TotalWidth, 0);
-    grad.addColorStop(0,"rgba(0,0,255,0.3)");
-    grad.addColorStop(0.5,"rgba(255,255,255,0.3)");
-    grad.addColorStop(0.72,"rgba(255,255,0,0.3)");
-    grad.addColorStop(0.80,"rgba(255,165,0,0.3)");
-    grad.addColorStop(1,"rgba(255,0,0,0.3)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(margin.left, margin.top, TotalWidth, TotalHeight);
-
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#000";
-    ctx.fillText("Spectral Type", margin.left + TotalWidth/2, margin.top + TotalHeight + 40);
-    ctx.save();
-    ctx.translate(20,margin.top + TotalHeight/2);
-    ctx.rotate(-Math.PI/2);
-    ctx.textAlign = "center";
-    ctx.fillText("Absolute Magnitude",0,0);
-    ctx.restore();
-
     const spectralTypes = ["O","B","A","F","G","K","M"];
     const Xpos=[0.1,0.3,0.5,0.6,0.7,0.78,0.88];
-    function XAxis(index){
-      /*const step = TotalWidth / (spectralTypes.length -1);
-      return margin.left+index*step;*/
-      return Xpos[index] * TotalWidth + margin.left;
-    }
-    
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillStyle = "#000";
-    for (let i=0; i<spectralTypes.length; i++){
-      const type = spectralTypes[i];
-      const x = XAxis(i);
-      ctx.beginPath();
-      ctx.moveTo(x,margin.top+TotalHeight);
-      ctx.lineTo(x,margin.top+TotalHeight+6);
-      ctx.strokeStyle="#000";
-      ctx.stroke();
-      ctx.fillText(type,x,margin.top+TotalHeight+10);
-      ctx.beginPath();
-      ctx.moveTo(x,margin.top);
-      ctx.lineTo(x,margin.top+TotalHeight);
-      ctx.strokeStyle="#ccc";
-      ctx.stroke();
-    }
-    /*for(let t=TempMin; t<=TempMax; t+=9000){
-      let x = XAxis(t);
-      ctx.moveTo(x,margin.top + TotalHeight);
-      ctx.lineTo(x,margin.top + TotalHeight +5);
-      ctx.stroke();
-      ctx.fillStyle = "#000";
-      ctx.fillText(t,x,margin.top + TotalHeight + 8);
-      ctx.strokeStyle = "#ccc";
-      ctx.beginPath();
-      ctx.moveTo(x,margin.top);
-      ctx.lineTo(x,margin.top + TotalHeight);
-      ctx.stroke();
-    }*/
-    
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    for(let M=MagMin; M<=MagMax; M+=5){
-      let y = YAxis(M);
-      ctx.moveTo(margin.left-5,y);
-      ctx.lineTo(margin.left,y);
-      ctx.stroke();
-      ctx.fillStyle = "#000";
-      ctx.fillText(M,margin.left-8,y);
-      ctx.strokeStyle = "#ccc";
-      ctx.beginPath();
-      ctx.moveTo(margin.left-5,y);
-      ctx.lineTo(margin.left + TotalWidth,y);
-      ctx.stroke();
-    }
+    const MagMin = -15;
+    const MagMax = 20;  
 
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(margin.left,margin.top + TotalHeight);
-    ctx.lineTo(margin.left + TotalWidth, margin.top + TotalHeight);
-    ctx.moveTo(margin.left,margin.top);
-    ctx.lineTo(margin.left,margin.top + TotalHeight);
-    ctx.stroke();
+    window.onload = function(){
+      const MassValues = document.getElementById("MassValues");
+      mass = parseFloat(MassValues.value);
+      readouts.massEl.innerText = mass;
 
-    function Labels(text, pos, angle=0){
-      ctx.save();
-      ctx.translate(XAxis(pos[0]), YAxis(pos[1]));
-      ctx.rotate(angle);
-      ctx.font = "12px sans-serif";
-      ctx.fillStyle = "rgba(0,0,0,0.7)";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(text,0,0);
-      ctx.restore();
-    }
-    Labels("Main Sequence", [2,3], Math.PI/4);
-    Labels("White Dwarfs", [1,13]);
-    Labels("Giants", [5,0]);
-    Labels("Supergiants", [3,-6]);
+      MassValues.onchange = function(){
+        mass = parseFloat(this.value);
+        readouts.massEl.innerText = mass;
+        drawAxes();
+        drawTrail();
+        updateStar(currentStage, currentSliderValue);
+      }
 
-    const evolutionaryTracks = {
-      0.1:{
-        preMS: {start:{x:4, y:5}, end:{x:4,y:0}},
-        MS: {start:{x:4,y:0}, end:{x:4.5,y:-5}},
-        postMS: {start:{x:4.5,y:-5}, end:{x:1,y:-15}},
-      }
-      /*0.5:{
-        preMS: {start:{x:,y:}, end:{x:,y:}},
-        MS: {start:{x:,y:}, end:{x:,y:}},
-        postMS: {start:{x:,y:}, end:{x:,y:}},
-      }
-      1:{
-        preMS: {start:{x:,y:}, end:{x:,y:}},
-        MS: {start:{x:,y:}, end:{x:,y:}},
-        postMS: {start:{x:,y:}, end:{x:,y:}},
-      }
-      3:{
-        preMS: {start:{x:,y:}, end:{x:,y:}},
-        MS: {start:{x:,y:}, end:{x:,y:}},
-        postMS: {start:{x:,y:}, end:{x:,y:}},
-      }
-      10:{
-        preMS: {start:{x:,y:}, end:{x:,y:}},
-        MS: {start:{x:,y:}, end:{x:,y:}},
-        postMS: {start:{x:,y:}, end:{x:,y:}},
-      }
-      100:{
-        preMS: {start:{x:,y:}, end:{x:,y:}},
-        MS: {start:{x:,y:}, end:{x:,y:}},
-        postMS: {start:{x:,y:}, end:{x:,y:}},
-      }*/
-    };
+      sliders.forEach((slider,i)=>{
+        slider.oninput = function(){
+          outputs[i].innerText = this.value;
+          const stage = i===0?"preMS":i===1?"MS":"postMS";
+          updateStar(stage,parseFloat(this.value));
+        }
+      });
 
-    let currentStage="MS",currentSliderValue=0;
-    const magReadout = document.getElementById("magReadout");
-    const specReadout = document.getElementById("specReadout");
-
-    function interpolate(p1,p2,t){
-      return{x:p1.x+(p2.x-p1.x)*t, y:p1.y+(p2.y-p1.y)*t};
-    };
-    function drawStar(x,y){
-      ctx.beginPath();
-      ctx.arc(XAxis(x),YAxis(y),5,0,Math.PI*2);
-      ctx.fillStyle="black";
-      ctx.fill();
-    }
-    function updateStar(stage,sliderValue){
-      currentStage=stage; currentSliderValue=sliderValue;
-      const t = sliderValue/100;
-      const track = evolutionaryTracks[mass][stage];
-      const pos = interpolate(track.start, track.end, t);
+      playButtons.forEach((btn,i)=>{
+        let stage = i===0?"preMS":i===1?"MS":"postMS";
+        btn.onclick = function(){
+          if(intervalId){
+            clearInterval(intervalId);
+            intervalId = null;
+            return;
+          }
+          intervalId = setInterval(()=>{
+            let slider = sliders[i];
+            let val = parseFloat(slider.value);
+            if(val>=100){
+              clearInterval(intervalId);
+              intervalId = null;
+              return;
+            }
+            slider.value = val+1;
+            outputs[i].innerText = slider.value;
+            updateStar(stage,parseFloat(slider.value));
+          },50);
+        }
+      });
       drawAxes();
-      drawStar(pos.x,pos.y);
-      magReadOut.innerText = pos.y.toFixed(1);
-      const specIndex = Math.round(pos.x);
-      specReadout.innerText = spectralTypes[Math.min(specIndex,spectralTypes.length-1)];
+      updateStar("MS",0);
     }
-    const preSlider =document.getElementById("time-pre");
-    const msSlider =document.getElementById("time-ms");
-    const postSlider =document.getElementById("time-post");
-    const pctPre =document.getElementById("pct-pre");
-    const pctMS =document.getElementById("pct-ms");
-    const pctPost =document.getElementById("pct-post");
+    
+    function XAxis(index){
+        return Xpos[index] * TotalWidth + margin.left;
+    }
+    function YAxis(Mag){
+        return margin.top + TotalHeight * (Mag - MagMin) / (MagMax - MagMin);
+    }
+    function tempToSpectralIndex(T){
+      if(T>30000) return 0;
+      if(T>10000) return 1 + (30000-T)/(30000-10000); // O-B 
+      if(T>7500) return 2 + (10000-T)/(10000-7500);   // B-A
+      if(T>6000) return 3 + (7500-T)/(7500-6000);     // A-F
+      if(T>5200) return 4 + (6000-T)/(6000-5200);     // F-G
+      if(T>3700) return 5 + (5200-T)/(5200-3700);     // G-K
+      return 6 + (3700-T)/(3700-3000);                // K-M
+    }
 
-    preSlider.oninput = function(){
-      msSlider.value = 0;
-      postSlider.value = 0;
-      pctPre.innerText = preSlider.value;
-      updateStar("preMS", preSlider.value);
-    };
-    msSlider.oninput = function(){
-      preSlider.value = 100;
-      postSlider.value = 0;
-      pctMS.innerText = msSlider.value;
-      updateStar("MS", msSlider.value);
-    };
-    postSlider.oninput = function(){
-      preSlider.value = 100;
-      msSlider.value = 100;
-      pctPost.innerText = postSlider.value;
-      updateStar("postMS", postSlider.value);
-    };
+    function drawAxes(){
+      //const TempMin = 1000;
+      //const TempMax = 75000;
+      //function XAxis(Temp){
+      //  return margin.left + TotalWidth * (TempMax - Temp) / (TempMax - TempMin);
+      //}
+      ctx.clearRect(0,0,cssWidth,cssHeight);
 
-    drawAxes();
-    updateStar("MS",0);
-  </script>
+      const grad = ctx.createLinearGradient(margin.left, 0, margin.left + TotalWidth, 0);
+      grad.addColorStop(0,"rgba(0,0,255,0.3)");
+      grad.addColorStop(0.5,"rgba(255,255,255,0.3)");
+      grad.addColorStop(0.72,"rgba(255,255,0,0.3)");
+      grad.addColorStop(0.80,"rgba(255,165,0,0.3)");
+      grad.addColorStop(1,"rgba(255,0,0,0.3)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(margin.left, margin.top, TotalWidth, TotalHeight);
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#000";
+      ctx.fillText("Spectral Type", margin.left + TotalWidth/2, margin.top + TotalHeight + 40);
+      ctx.save();
+      ctx.translate(20,margin.top + TotalHeight/2);
+      ctx.rotate(-Math.PI/2);
+      ctx.textAlign = "center";
+      ctx.fillText("Absolute Magnitude",0,0);
+      ctx.restore();
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = "#000";
+      for (let i=0; i<spectralTypes.length; i++){
+        const type = spectralTypes[i];
+        const x = XAxis(i);
+        ctx.beginPath();
+        ctx.moveTo(x,margin.top+TotalHeight);
+        ctx.lineTo(x,margin.top+TotalHeight+6);
+        ctx.strokeStyle="#000";
+        ctx.stroke();
+        ctx.fillText(type,x,margin.top+TotalHeight+10);
+        ctx.beginPath();
+        ctx.moveTo(x,margin.top);
+        ctx.lineTo(x,margin.top+TotalHeight);
+        ctx.strokeStyle="#ccc";
+        ctx.stroke();
+      }
+      //for(let t=TempMin; t<=TempMax; t+=9000){
+        //let x = XAxis(t);
+        //ctx.moveTo(x,margin.top + TotalHeight);
+        //ctx.lineTo(x,margin.top + TotalHeight +5);
+        //ctx.stroke();
+        //ctx.fillStyle = "#000";
+        //ctx.fillText(t,x,margin.top + TotalHeight + 8);
+        //ctx.strokeStyle = "#ccc";
+        //ctx.beginPath();
+        //ctx.moveTo(x,margin.top);
+        //ctx.lineTo(x,margin.top + TotalHeight);
+        //ctx.stroke();
+      //}
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for(let M=MagMin; M<=MagMax; M+=5){
+        let y = YAxis(M);
+        ctx.moveTo(margin.left-5,y);
+        ctx.lineTo(margin.left,y);
+        ctx.stroke();
+        ctx.fillStyle = "#000";
+        ctx.fillText(M,margin.left-8,y);
+        ctx.strokeStyle = "#ccc";
+        ctx.beginPath();
+        ctx.moveTo(margin.left-5,y);
+        ctx.lineTo(margin.left + TotalWidth,y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin.left,margin.top + TotalHeight);
+      ctx.lineTo(margin.left + TotalWidth, margin.top + TotalHeight);
+      ctx.moveTo(margin.left,margin.top);
+      ctx.lineTo(margin.left,margin.top + TotalHeight);
+      ctx.stroke();
+
+      function Labels(text, pos, angle=0){
+        ctx.save();
+        ctx.translate(XAxis(pos[0]), YAxis(pos[1]));
+        ctx.rotate(angle);
+        ctx.font = "12px sans-serif";
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text,0,0);
+        ctx.restore();
+      }
+      Labels("Main Sequence", [2,3], Math.PI/4);
+      Labels("White Dwarfs", [1,13]);
+      Labels("Giants", [5,0]);
+      Labels("Supergiants", [3,-6]);
+    }
+    
+    function protostarState(mass, f01){
+      return {T:5000+mass*1000*f01, L:0.1+mass*2*f01};
+    }
+    function mainSequenceState(mass,f01){
+      return {T:6000+mass*1000*f01, L:1+mass*2*f01};
+    }
+    function postMainSequenceState(mass,f01){
+      return {T:4000+mass*500*f01, L:0.5+mass*f01};
+    }
+    function absMagnitudeFromLuminosity(L){
+      return 4.8 - 2.5*Math.log10(L); 
+    }
+
+    function drawTrail(){
+      for(const stage of ["preMS","MS","postMS"]){
+        for(const pt of trailPoints[stage]){
+          ctx.beginPath();
+          ctx.arc(pt.x,pt.y,3,0,Math.PI*2);
+          ctx.fillStyle = pt.color;
+          ctx.fill();
+        }
+      }
+    }
+  
+    function drawStar(T,L,stage){
+      const x = XAxis(tempToSpectralIndex(T));
+      const y = YAxis(absMagnitudeFromLuminosity(L));
+      ctx.beginPath();
+      ctx.arc(x,y,5,0,Math.PI*2);
+      let color = stage === "preMS" ? "blue" : stage === "MS" ? "green" : "red";
+      ctx.fillStyle=color;
+      ctx.fill();
+      trailPoints[stage].push({x,y,color});;
+    }
+
+    function updateStar(stage,sliderValue){
+      currentStage = stage; 
+      currentSliderValue = sliderValue;
+      let t = sliderValue/100;
+      let state;
+      if(stage === "preMS") state = protostarState(mass,t);
+      else if (stage === "MS") state = mainSequenceState(mass,t);
+      else state = postMainSequenceState(mass,t);
+
+      drawAxes();
+      drawTrail();
+      drawStar(state.T,state.L,stage)
+    
+      readouts.absMagEl.innerText = absMagnitudeFromLuminosity(state.L).toFixed(2);
+      readouts.surfTempEl.innerText = state.T.toFixed(0);
+      readouts.stageEl.innerText = stage;
+    }
+
+    /*
+    function info(L,T){
+      ctx.textAlign="left";
+      let absMag = absMagnitudeFromLuminosity(L);
+      ctx.fillText("absMag="+absMag.toFixed(2),10,40);
+      ctx.fillText("T="+T.toFixed(0)+" K",10,20);
+    }*/
+</script>
+
 
 </div>
 <script type="module" src="./star.js"></script>
 
 </body>
 </html>
+
