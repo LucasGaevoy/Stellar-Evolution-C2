@@ -210,16 +210,10 @@
   </div>
 
   <script>
-    import {getTimeUI,getStarReadouts} from "./ui.js";
-
-    let mass=1;
-    let currentStage = "MS";
+    let mass;
+    let currentStage = "preMS";
     let currentSliderValue = 0;
-    let intervalId = null;
-    const trailPoints = {preMS:[], MS:[], postMS:[]};
 
-    const {sliders, playButtons, outputs} = getTimeUI();
-    const readouts = getStarReadouts();
     const canvas = document.getElementById("diagram");
     const ctx = canvas.getContext("2d");
 
@@ -238,70 +232,9 @@
     const spectralTypes = ["O","B","A","F","G","K","M"];
     const Xpos=[0.1,0.3,0.5,0.6,0.7,0.78,0.88];
     const MagMin = -15;
-    const MagMax = 20;  
+    const MagMax = 20;
 
-    window.onload = function(){
-      const MassValues = document.getElementById("MassValues");
-      mass = parseFloat(MassValues.value);
-      readouts.massEl.innerText = mass;
-
-      MassValues.onchange = function(){
-        mass = parseFloat(this.value);
-        readouts.massEl.innerText = mass;
-        drawAxes();
-        drawTrail();
-        updateStar(currentStage, currentSliderValue);
-      }
-
-      sliders.forEach((slider,i)=>{
-        slider.oninput = function(){
-          outputs[i].innerText = this.value;
-          const stage = i===0?"preMS":i===1?"MS":"postMS";
-          updateStar(stage,parseFloat(this.value));
-        }
-      });
-
-      playButtons.forEach((btn,i)=>{
-        let stage = i===0?"preMS":i===1?"MS":"postMS";
-        btn.onclick = function(){
-          if(intervalId){
-            clearInterval(intervalId);
-            intervalId = null;
-            return;
-          }
-          intervalId = setInterval(()=>{
-            let slider = sliders[i];
-            let val = parseFloat(slider.value);
-            if(val>=100){
-              clearInterval(intervalId);
-              intervalId = null;
-              return;
-            }
-            slider.value = val+1;
-            outputs[i].innerText = slider.value;
-            updateStar(stage,parseFloat(slider.value));
-          },50);
-        }
-      });
-      drawAxes();
-      updateStar("MS",0);
-    }
-    
-    function XAxis(index){
-        return Xpos[index] * TotalWidth + margin.left;
-    }
-    function YAxis(Mag){
-        return margin.top + TotalHeight * (Mag - MagMin) / (MagMax - MagMin);
-    }
-    function tempToSpectralIndex(T){
-      if(T>30000) return 0;
-      if(T>10000) return 1 + (30000-T)/(30000-10000); // O-B 
-      if(T>7500) return 2 + (10000-T)/(10000-7500);   // B-A
-      if(T>6000) return 3 + (7500-T)/(7500-6000);     // A-F
-      if(T>5200) return 4 + (6000-T)/(6000-5200);     // F-G
-      if(T>3700) return 5 + (5200-T)/(5200-3700);     // G-K
-      return 6 + (3700-T)/(3700-3000);                // K-M
-    }
+    const trailPoints = {preMS:[], MS:[], postMS:[]};
 
     function drawAxes(){
       //const TempMin = 1000;
@@ -402,67 +335,97 @@
       Labels("Giants", [5,0]);
       Labels("Supergiants", [3,-6]);
     }
+
+    window.onload = function(){
+      const MassValues = document.getElementById("MassValues");
+      mass = parseFloat(MassValues.value);
+      
+      MassValues.onchange = function(){
+        mass = parseFloat(this.value);
+        drawAxes();
+        drawTrail();
+        updateStar(currentStage, currentSliderValue);
+      }
+      drawAxes();
+      updateStar("preMS",0);
+    }
     
-    function protostarState(mass, f01){
-      return {T:5000+mass*1000*f01, L:0.1+mass*2*f01};
+    function XAxis(index){
+        return Xpos[index] * TotalWidth + margin.left;
     }
-    function mainSequenceState(mass,f01){
-      return {T:6000+mass*1000*f01, L:1+mass*2*f01};
+    function YAxis(Mag){
+        return margin.top + TotalHeight * (Mag - MagMin) / (MagMax - MagMin);
     }
-    function postMainSequenceState(mass,f01){
-      return {T:4000+mass*500*f01, L:0.5+mass*f01};
+    function tempToSpectralIndex(T){
+      if(T>30000) return 0;
+      if(T>10000) return 1 + (30000-T)/(30000-10000); // O-B 
+      if(T>7500) return 2 + (10000-T)/(10000-7500);   // B-A
+      if(T>6000) return 3 + (7500-T)/(7500-6000);     // A-F
+      if(T>5200) return 4 + (6000-T)/(6000-5200);     // F-G
+      if(T>3700) return 5 + (5200-T)/(5200-3700);     // G-K
+      return 6 + (3700-T)/(3700-3000);                // K-M
     }
     function absMagnitudeFromLuminosity(L){
       return 4.8 - 2.5*Math.log10(L); 
     }
 
     function drawTrail(){
-      for(const stage of ["preMS","MS","postMS"]){
-        for(const pt of trailPoints[stage]){
-          ctx.beginPath();
-          ctx.arc(pt.x,pt.y,3,0,Math.PI*2);
-          ctx.fillStyle = pt.color;
-          ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "red";
+      ["preMS","MS","postMS"].forEach(stage =>{
+        const points = trailPoints[stage];
+        if (points.length>0){
+          points.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(XAxis(tempToSpectralIndex(p.T)), YAxis(p.Mag),3,0,Math.PI*2);
+            ctx.fillStyle = "red";
+            ctx.fill();
+          });
         }
+        if (points.length>1){
+          ctx.beginPath();
+          ctx.moveTo(XAxis(tempToSpectralIndex(points[0].T)), YAxis(points[0].Mag));
+          for (let i=1;i<points.length; i++){
+            ctx.lineTo(XAxis(tempToSpectralIndex(points[i].T)), YAxis(points[i].Mag));
+          }
+          ctx.stroke();
+        }
+      });
+    }
+    
+    function addPointToTrail(stage, L, T){
+      const Mag = absMagnitudeFromLuminosity(L);
+      trailPoints[stage].push({Mag,T});
+    }
+
+    function updateStar(stage,currentSliderValue){
+      const f01 = currentSliderValue/100;
+      let L,T;
+
+      if(stage == "preMS"){
+        L = 1+0.4*f01;
+        T = 4000*(1+0.5*f01);
+      } else if(stage === "MS"){
+        L = 1+0.4*f01;
+        T = 5800*(1-0.5*f01);
+      } else if(stage === "postMS"){
+        L = 0.003+f01*(0.0003-0.003);
+        T = 3100+f01*(9000-3100);
       }
-    }
-  
-    function drawStar(T,L,stage){
-      const x = XAxis(tempToSpectralIndex(T));
-      const y = YAxis(absMagnitudeFromLuminosity(L));
-      ctx.beginPath();
-      ctx.arc(x,y,5,0,Math.PI*2);
-      let color = stage === "preMS" ? "blue" : stage === "MS" ? "green" : "red";
-      ctx.fillStyle=color;
-      ctx.fill();
-      trailPoints[stage].push({x,y,color});;
-    }
 
-    function updateStar(stage,sliderValue){
-      currentStage = stage; 
-      currentSliderValue = sliderValue;
-      let t = sliderValue/100;
-      let state;
-      if(stage === "preMS") state = protostarState(mass,t);
-      else if (stage === "MS") state = mainSequenceState(mass,t);
-      else state = postMainSequenceState(mass,t);
-
+      addPointToTrail(stage,L,T)
       drawAxes();
       drawTrail();
-      drawStar(state.T,state.L,stage)
-    
-      readouts.absMagEl.innerText = absMagnitudeFromLuminosity(state.L).toFixed(2);
-      readouts.surfTempEl.innerText = state.T.toFixed(0);
-      readouts.stageEl.innerText = stage;
     }
 
-    /*
     function info(L,T){
       ctx.textAlign="left";
       let absMag = absMagnitudeFromLuminosity(L);
-      ctx.fillText("absMag="+absMag.toFixed(2),10,40);
-      ctx.fillText("T="+T.toFixed(0)+" K",10,20);
-    }*/
+      ctx.fillText(T);
+      ctx.fillText(L);
+      //ctx.fillText("absMag="+absMag.toFixed(2),10,40);
+      //ctx.fillText("T="+T.toFixed(0)+" K",10,20);
+    }
 </script>
 
 
