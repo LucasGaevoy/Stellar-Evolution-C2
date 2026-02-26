@@ -1,0 +1,52 @@
+Render.js:
+
+
+Background colour:
+scene.background = new THREE.Color(0x0b0f18);
+
+Star Emissiveness:
+renderer.toneMappingExposure = 1.2;
+
+Lights 1: lights everything equally without direction
+new THREE.AmbientLight(0xffffff, 0.25)
+
+Lights 2: light from the sun, with shadows etc
+new THREE.DirectionalLight(0xffffff, 0.7)
+
+grid ( currently commented out):
+new THREE.GridHelper
+
+emissive brightness shader:
+uGlow: { value: 2.2 }
+
+Granulation contrast (texture strength):
+uGranuleStrength = 0.85
+
+Limb darkening strength: ( higher ==> darker rim)
+uLimb = 0.65
+
+Star spots: ( how blotchy/cratery the star is)
+uSpotStrength = 0.1
+
+Granule size:
+fbm(p * 85.0 ...
+
+Surface motion:
+float t = uTime * 0.12;
+
+Glow from luminosity L:
+Math.log10(L + 1) * 1.35 + 1.55
+
+Glow limit ( stops when things get too dim or too bright)
+, 1.4, 9.0 currently
+
+Temperature colour limit:
+clamp(T, 2500, 40000)
+
+Halo scale formula:
+
+R * (4.4 + glow * 0.85)
+
+Spin speed:
+
+uSpin: { value: 0.1 }
