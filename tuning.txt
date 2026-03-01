@@ -1,6 +1,5 @@
 Render.js:
 
-
 Background colour:
 scene.background = new THREE.Color(0x0b0f18);
 
@@ -50,3 +49,6 @@ R * (4.4 + glow * 0.85)
 Spin speed:
 
 uSpin: { value: 0.1 }
+
+Speed of percentage playthrough
+intervalMs:
