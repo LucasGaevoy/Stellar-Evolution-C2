@@ -8,7 +8,8 @@
     .info .val{
       display: inline-block;
       min-width: 140px;   /* tweak: 120–180 depending on your taste */
-      }
+    }
+
     body{
       margin: 0;
       padding: 0;
@@ -65,20 +66,11 @@
 
     #scene { flex: 1 1 auto; min-height: 320px;}
     
-
     .mass-box{
       position: absolute;
       top: 15px;
       right: 15px;
       width: auto;
-    }
-
-    .mass-label{
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 14px;
-      margin-bottom: 6px;
     }
 
     .time-box{
@@ -93,43 +85,32 @@
       white-space: nowrap;
     }
 
-    #PlayButton{
-      font-size: 16px;
-      cursor: pointer;
+    .TimeSlider {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 100%;
+      height: 20px;
+      background: #d3d3d3;
+      outline: none;
+      opacity: 0.7;
+      pointer-events: none; 
+      cursor: default;
     }
 
-    .slidecontainer {
-    width: 300px;
-    margin: 10px auto;
+    .TimeSlider::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #759ec0;
+      cursor: default; 
     }
 
-    .slider {
-    appearance: none;
-    width: 100%;
-    height: 20px;
-    background: #d3d3d3;
-    outline: none;
-    opacity: 0.7;
-    -webkit-transition: .2s;
-    transition: opacity .2s;
-    }
-
-    .slider:hover {
-    opacity: 1;
-    }
-
-    .slider::-webkit-slider-thumb {
-    appearance: none;
-    width: 20px;
-    height: 20px;
-    background: #759ec0;
-    cursor: pointer;
-    }
-    .slider::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
-    background: #759ec0;
-    cursor: pointer;
+    .TimeSlider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      background: #759ec0;
+      cursor: default;
     }
 
     #hr-diagram{
@@ -210,228 +191,277 @@
   </div>
 
   <script>
-    let mass;
-    let currentStage = "preMS";
-    let currentSliderValue = 0;
-
     const canvas = document.getElementById("diagram");
     const ctx = canvas.getContext("2d");
-
     const cssWidth = 400;
     const cssHeight = 480;
+    const dpr = window.devicePixelRatio || 1;
     canvas.style.width = cssWidth + "px";
     canvas.style.height = cssHeight + "px";
-    const dpr = window.devicePixelRatio || 1;
     canvas.width = cssWidth * dpr;
     canvas.height = cssHeight * dpr;
-    ctx.scale(dpr,dpr);
+    ctx.scale(dpr, dpr);
 
-    const margin = {top: 30, right: 20, bottom: 40, left: 40};
+    const margin = { top: 30, right: 20, bottom: 50, left: 40 };
     const TotalWidth = cssWidth - margin.left - margin.right;
     const TotalHeight = cssHeight - margin.top - margin.bottom;
-    const spectralTypes = ["O","B","A","F","G","K","M"];
-    const Xpos=[0.1,0.3,0.5,0.6,0.7,0.78,0.88];
     const MagMin = -15;
     const MagMax = 20;
 
-    const trailPoints = {preMS:[], MS:[], postMS:[]};
+    const PreMSPathData = {
+        "0.1": [{ T: 2700, L: 0.5 }, { T: 3100, L: 0.01 }, { T: 3350, L: 0.0035 }],
+        "0.5": [{ T: 3200, L: 20 }, { T: 3800, L: 0.5 }, { T: 4600, L: 0.15 }],
+        "1": [{ T: 3600, L: 80 }, { T: 4500, L: 1.5 }, { T: 5000, L: 0.5 }, { T: 5800, L: 0.3 }], 
+        "3": [{ T: 4000, L: 200 }, { T: 6000, L: 15 }, { T: 10000, L: 30 }, { T: 12500, L: 55 }],
+        "10": [{ T: 4500, L: 150000 }, { T: 8500, L: 2000 }, { T: 22000, L: 10000 }, { T: 32000, L: 25000 }],
+        "100": [{ T: 5500, L: 4500000 }, { T: 22000, L: 800000 }, { T: 32000, L: 1500000 }]
+    };
 
-    function drawAxes(){
-      //const TempMin = 1000;
-      //const TempMax = 75000;
-      //function XAxis(Temp){
-      //  return margin.left + TotalWidth * (TempMax - Temp) / (TempMax - TempMin);
-      //}
-      ctx.clearRect(0,0,cssWidth,cssHeight);
-
-      const grad = ctx.createLinearGradient(margin.left, 0, margin.left + TotalWidth, 0);
-      grad.addColorStop(0,"rgba(0,0,255,0.3)");
-      grad.addColorStop(0.5,"rgba(255,255,255,0.3)");
-      grad.addColorStop(0.72,"rgba(255,255,0,0.3)");
-      grad.addColorStop(0.80,"rgba(255,165,0,0.3)");
-      grad.addColorStop(1,"rgba(255,0,0,0.3)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(margin.left, margin.top, TotalWidth, TotalHeight);
-
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#000";
-      ctx.fillText("Spectral Type", margin.left + TotalWidth/2, margin.top + TotalHeight + 40);
-      ctx.save();
-      ctx.translate(20,margin.top + TotalHeight/2);
-      ctx.rotate(-Math.PI/2);
-      ctx.textAlign = "center";
-      ctx.fillText("Absolute Magnitude",0,0);
-      ctx.restore();
-
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillStyle = "#000";
-      for (let i=0; i<spectralTypes.length; i++){
-        const type = spectralTypes[i];
-        const x = XAxis(i);
-        ctx.beginPath();
-        ctx.moveTo(x,margin.top+TotalHeight);
-        ctx.lineTo(x,margin.top+TotalHeight+6);
-        ctx.strokeStyle="#000";
-        ctx.stroke();
-        ctx.fillText(type,x,margin.top+TotalHeight+10);
-        ctx.beginPath();
-        ctx.moveTo(x,margin.top);
-        ctx.lineTo(x,margin.top+TotalHeight);
-        ctx.strokeStyle="#ccc";
-        ctx.stroke();
-      }
-      //for(let t=TempMin; t<=TempMax; t+=9000){
-        //let x = XAxis(t);
-        //ctx.moveTo(x,margin.top + TotalHeight);
-        //ctx.lineTo(x,margin.top + TotalHeight +5);
-        //ctx.stroke();
-        //ctx.fillStyle = "#000";
-        //ctx.fillText(t,x,margin.top + TotalHeight + 8);
-        //ctx.strokeStyle = "#ccc";
-        //ctx.beginPath();
-        //ctx.moveTo(x,margin.top);
-        //ctx.lineTo(x,margin.top + TotalHeight);
-        //ctx.stroke();
-      //}
-      ctx.textAlign = "right";
-      ctx.textBaseline = "middle";
-      for(let M=MagMin; M<=MagMax; M+=5){
-        let y = YAxis(M);
-        ctx.moveTo(margin.left-5,y);
-        ctx.lineTo(margin.left,y);
-        ctx.stroke();
-        ctx.fillStyle = "#000";
-        ctx.fillText(M,margin.left-8,y);
-        ctx.strokeStyle = "#ccc";
-        ctx.beginPath();
-        ctx.moveTo(margin.left-5,y);
-        ctx.lineTo(margin.left + TotalWidth,y);
-        ctx.stroke();
-      }
-
-      ctx.strokeStyle = "#000";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(margin.left,margin.top + TotalHeight);
-      ctx.lineTo(margin.left + TotalWidth, margin.top + TotalHeight);
-      ctx.moveTo(margin.left,margin.top);
-      ctx.lineTo(margin.left,margin.top + TotalHeight);
-      ctx.stroke();
-
-      function Labels(text, pos, angle=0){
-        ctx.save();
-        ctx.translate(XAxis(pos[0]), YAxis(pos[1]));
-        ctx.rotate(angle);
-        ctx.font = "12px sans-serif";
-        ctx.fillStyle = "rgba(0,0,0,0.7)";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(text,0,0);
-        ctx.restore();
-      }
-      Labels("Main Sequence", [2,3], Math.PI/4);
-      Labels("White Dwarfs", [1,13]);
-      Labels("Giants", [5,0]);
-      Labels("Supergiants", [3,-6]);
-    }
-
-    window.onload = function(){
-      const MassValues = document.getElementById("MassValues");
-      mass = parseFloat(MassValues.value);
-      
-      MassValues.onchange = function(){
-        mass = parseFloat(this.value);
-        drawAxes();
-        drawTrail();
-        updateStar(currentStage, currentSliderValue);
-      }
-      drawAxes();
-      updateStar("preMS",0);
-    }
-    
-    function XAxis(index){
-        return Xpos[index] * TotalWidth + margin.left;
-    }
-    function YAxis(Mag){
+    function YAxis(Mag) {
         return margin.top + TotalHeight * (Mag - MagMin) / (MagMax - MagMin);
     }
-    function tempToSpectralIndex(T){
-      if(T>30000) return 0;
-      if(T>10000) return 1 + (30000-T)/(30000-10000); // O-B 
-      if(T>7500) return 2 + (10000-T)/(10000-7500);   // B-A
-      if(T>6000) return 3 + (7500-T)/(7500-6000);     // A-F
-      if(T>5200) return 4 + (6000-T)/(6000-5200);     // F-G
-      if(T>3700) return 5 + (5200-T)/(5200-3700);     // G-K
-      return 6 + (3700-T)/(3700-3000);                // K-M
-    }
-    function absMagnitudeFromLuminosity(L){
-      return 4.8 - 2.5*Math.log10(L); 
+
+    function TempConversion(T) {
+        const logT = Math.log10(Math.max(T, 1500));
+        const logMax = Math.log10(65000);
+        const logMin = Math.log10(1500);
+        let pct = (logMax - logT) / (logMax - logMin);
+        pct = Math.max(0, Math.min(1, pct));
+        return pct * TotalWidth + margin.left;
     }
 
-    function drawTrail(){
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "red";
-      ["preMS","MS","postMS"].forEach(stage =>{
-        const points = trailPoints[stage];
-        if (points.length>0){
-          points.forEach(p => {
-            ctx.beginPath();
-            ctx.arc(XAxis(tempToSpectralIndex(p.T)), YAxis(p.Mag),3,0,Math.PI*2);
-            ctx.fillStyle = "red";
-            ctx.fill();
-          });
+    function absMagnitudeFromLuminosity(L) {
+        return 4.83 - 2.5 * Math.log10(Math.max(L, 1e-10));
+    }
+
+    function getSmoothPoint(data, pct) {
+        if (pct <= 0) return data[0];
+        if (pct >= 1) return data[data.length - 1];
+        const n = data.length - 1;
+        const pos = pct * n;
+        const i = Math.floor(pos);
+        const t = pos - i;
+        const p0 = data[Math.max(0, i - 1)];
+        const p1 = data[i];
+        const p2 = data[i + 1] || p1;
+        const p3 = data[i + 2] || p2;
+        const crm = (v0, v1, v2, v3, t) => 0.5 * ((2 * v1) + (-v0 + v2) * t + (2 * v0 - 5 * v1 + 4 * v2 - v3) * t * t + (-v0 + 3 * v1 - 3 * v2 + v3) * t * t * t);
+        return {
+            T: crm(p0.T, p1.T, p2.T, p3.T, t),
+            L: Math.pow(10, crm(Math.log10(p0.L), Math.log10(p1.L), Math.log10(p2.L), Math.log10(p3.L), t))
+        };
+    }
+
+    function drawAxes() {
+        ctx.clearRect(0, 0, cssWidth, cssHeight);
+        const specs = [
+            { name: "O", T: 40000, color: "rgba(77, 109, 255, 0.35)" },
+            { name: "B", T: 20000, color: "rgba(170, 191, 255, 0.35)" },
+            { name: "A", T: 9000, color: "rgba(255, 255, 255, 0.35)" },
+            { name: "F", T: 6800, color: "rgba(255, 255, 212, 0.35)" },
+            { name: "G", T: 5600, color: "rgba(255, 238, 0, 0.35)" },
+            { name: "K", T: 4500, color: "rgba(255, 149, 0, 0.35)" },
+            { name: "M", T: 2800, color: "rgba(255, 61, 61, 0.35)" }
+        ];
+        const grad = ctx.createLinearGradient(margin.left, 0, margin.left + TotalWidth, 0);
+        specs.forEach(s => {
+            let pos = (TempConversion(s.T) - margin.left) / TotalWidth;
+            grad.addColorStop(Math.max(0, Math.min(1, pos)), s.color);
+        });
+        ctx.fillStyle = grad; ctx.fillRect(margin.left, margin.top, TotalWidth, TotalHeight);
+
+        ctx.textAlign = "center"; ctx.fillStyle = "#000";
+        ctx.fillText("Spectral Type", margin.left + TotalWidth / 2, margin.top + TotalHeight + 40);
+        ctx.save();
+        ctx.translate(15, margin.top + TotalHeight / 2); ctx.rotate(-Math.PI / 2);
+        ctx.fillText("Absolute Magnitude", 0, 0);
+        ctx.restore();
+
+        ctx.textBaseline = "top";
+        specs.forEach(s => {
+            const x = TempConversion(s.T);
+            ctx.beginPath(); ctx.moveTo(x, margin.top); ctx.lineTo(x, margin.top + TotalHeight);
+            ctx.strokeStyle = "rgba(200, 200, 200, 0.5)"; ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, margin.top + TotalHeight); ctx.lineTo(x, margin.top + TotalHeight + 6);
+            ctx.strokeStyle = "#000"; ctx.stroke();
+            ctx.fillText(s.name, x, margin.top + TotalHeight + 10);
+        });
+
+        ctx.textAlign = "right"; ctx.textBaseline = "middle";
+        for (let M = MagMin; M <= MagMax; M += 5) {
+            let y = YAxis(M);
+            ctx.moveTo(margin.left - 5, y); ctx.lineTo(margin.left, y); ctx.stroke();
+            ctx.fillText(M, margin.left - 8, y);
+            ctx.strokeStyle = "#ccc"; ctx.beginPath();
+            ctx.moveTo(margin.left, y); ctx.lineTo(margin.left + TotalWidth, y); ctx.stroke();
         }
-        if (points.length>1){
-          ctx.beginPath();
-          ctx.moveTo(XAxis(tempToSpectralIndex(points[0].T)), YAxis(points[0].Mag));
-          for (let i=1;i<points.length; i++){
-            ctx.lineTo(XAxis(tempToSpectralIndex(points[i].T)), YAxis(points[i].Mag));
-          }
-          ctx.stroke();
+
+        ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.beginPath();
+        ctx.moveTo(margin.left, margin.top + TotalHeight); ctx.lineTo(margin.left + TotalWidth, margin.top + TotalHeight);
+        ctx.moveTo(margin.left, margin.top); ctx.lineTo(margin.left, margin.top + TotalHeight); ctx.stroke();
+
+        function Labels(text, T, Mag, angle = 0) {
+            ctx.save();
+            ctx.translate(TempConversion(T), YAxis(Mag)); ctx.rotate(angle);
+            ctx.font = "12px sans-serif"; ctx.fillStyle = "rgba(0,0,0,0.7)";
+            ctx.textAlign = "center"; ctx.fillText(text, 0, 0);
+            ctx.restore();
         }
-      });
-    }
-    
-    function addPointToTrail(stage, L, T){
-      const Mag = absMagnitudeFromLuminosity(L);
-      trailPoints[stage].push({Mag,T});
+        Labels("Main Sequence", 11000, 0, Math.PI / 4);
+        Labels("White Dwarfs", 13000, 13);
+        Labels("Giants", 3700, 0);
+        Labels("Supergiants", 5000, -8);
     }
 
-    function updateStar(stage,currentSliderValue){
-      const f01 = currentSliderValue/100;
-      let L,T;
-
-      if(stage == "preMS"){
-        L = 1+0.4*f01;
-        T = 4000*(1+0.5*f01);
-      } else if(stage === "MS"){
-        L = 1+0.4*f01;
-        T = 5800*(1-0.5*f01);
-      } else if(stage === "postMS"){
-        L = 0.003+f01*(0.0003-0.003);
-        T = 3100+f01*(9000-3100);
-      }
-
-      addPointToTrail(stage,L,T)
-      drawAxes();
-      drawTrail();
+    function drawPointer(x, y, color) {
+        ctx.fillStyle = color; ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "white"; ctx.lineWidth = 1; ctx.stroke();
     }
 
-    function info(L,T){
-      ctx.textAlign="left";
-      let absMag = absMagnitudeFromLuminosity(L);
-      ctx.fillText(T);
-      ctx.fillText(L);
-      //ctx.fillText("absMag="+absMag.toFixed(2),10,40);
-      //ctx.fillText("T="+T.toFixed(0)+" K",10,20);
+    function renderTrack() {
+        drawAxes();
+        const mKey = document.getElementById("MassValues").value;
+        const pts = PreMSPathData[mKey];
+        const valPre = document.getElementById("time-pre").value / 100;
+        const valMS = document.getElementById("time-ms").value / 100;
+        const valPost = document.getElementById("time-post").value / 100;
+
+        let lastX, lastY;
+
+        if (pts && valPre > 0) {
+            ctx.strokeStyle = "#00008B"; ctx.lineWidth = 2; ctx.beginPath();
+            const start = pts[0];
+            ctx.moveTo(TempConversion(start.T), YAxis(absMagnitudeFromLuminosity(start.L)));
+            const res = 150;
+            for (let j = 1; j <= res * valPre; j++) {
+                const p = getSmoothPoint(pts, j / res);
+                lastX = TempConversion(p.T);
+                lastY = YAxis(absMagnitudeFromLuminosity(p.L));
+                ctx.lineTo(lastX, lastY);
+            }
+            ctx.stroke();
+            if (valMS === 0) drawPointer(lastX, lastY, "#00008B");
+        }
+
+        if (valPre >= 1 && valMS > 0) {
+            const zams = pts[pts.length - 1];
+            const x0 = TempConversion(zams.T);
+            const y0 = YAxis(absMagnitudeFromLuminosity(zams.L));
+            const lengthScale = 100; 
+            const msEndX = x0 - lengthScale * 0.15; 
+            const msEndY = y0 - lengthScale * 0.15; 
+            
+            const currX = x0 + (msEndX - x0) * valMS; 
+            const currY = y0 + (msEndY - y0) * valMS; 
+
+            ctx.strokeStyle = "#008000"; ctx.lineWidth = 2; ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(currX, currY);
+            ctx.stroke();
+            
+            lastX = currX; lastY = currY;
+            if (valPost === 0) drawPointer(lastX, lastY, "#008000");
+
+            if (valMS >= 1 && valPost > 0) {
+                const m = parseFloat(mKey);
+                ctx.strokeStyle = "#B22222"; ctx.lineWidth = 2; ctx.beginPath();
+                ctx.moveTo(msEndX, msEndY);
+                
+                let px = msEndX, py = msEndY;
+
+                if (m < 10) {
+                    let targetL = 200;
+                    if (m == 3) {
+                      targetL = 800;
+                      targetT = 3600;
+                    } else if (m == 0.1) {
+                      targetL = 1.1;
+                      targetT = 2500;
+                    } else if (m == 1) {
+                      targetL = 200;
+                      targetT = 3600;
+                    }
+                    const giantX = TempConversion(3600);
+                    const giantY = YAxis(absMagnitudeFromLuminosity(targetL));
+                    const farLeftX = TempConversion(40000); 
+                    const wdX = TempConversion(13000);
+                    const wdY = YAxis(13);
+
+                    if (valPost <= 0.75) {
+                        if (valPost <= 0.3) {
+                            let pct = valPost / 0.3;
+                            px = msEndX + (giantX - msEndX) * pct;
+                            py = msEndY + (giantY - msEndY) * pct;
+                            ctx.lineTo(px, py);
+                        } else {
+                            ctx.lineTo(giantX, giantY);
+                            let pct = (valPost - 0.3) / (0.75 - 0.3);
+                            px = giantX + (farLeftX - giantX) * pct;
+                            py = giantY;
+                            ctx.lineTo(px, py);
+                        }
+                    } else {
+                        ctx.lineTo(giantX, giantY);
+                        ctx.lineTo(farLeftX, giantY);
+                        let pct = (valPost - 0.75) / 0.25;
+                        px = farLeftX + (wdX - farLeftX) * pct;
+                        py = giantY + (wdY - giantY) * pct;
+                        ctx.lineTo(px, py);
+                    }
+                } else {
+                    const sgX = TempConversion(4500); 
+                    const sgY = msEndY - 25; 
+                    if (valPost <= 0.75) {
+                        let pct = valPost / 0.75;
+                        px = msEndX + (sgX - msEndX) * pct;
+                        py = msEndY + (sgY - msEndY) * pct;
+                        ctx.lineTo(px, py);
+                    } else {
+                        ctx.lineTo(sgX, sgY);
+                        px = sgX; py = sgY;
+                    }
+                }
+                ctx.stroke();
+                drawPointer(px, py, "#B22222");
+            }
+        }
     }
+
+    const sPre = document.getElementById("time-pre");
+    const sMS = document.getElementById("time-ms");
+    const sPost = document.getElementById("time-post");
+    sPre.oninput = function() { document.getElementById("pct-pre").innerText = this.value; renderTrack(); };
+    sMS.oninput = function() { document.getElementById("pct-ms").innerText = this.value; renderTrack(); };
+    sPost.oninput = function() { document.getElementById("pct-post").innerText = this.value; renderTrack(); };
+    document.getElementById("MassValues").onchange = function() {
+        sPre.value = 0; sMS.value = 0; sPost.value = 0;
+        document.getElementById("pct-pre").innerText = "0";
+        document.getElementById("pct-ms").innerText = "0";
+        document.getElementById("pct-post").innerText = "0";
+        renderTrack();
+    };
+    function setupPlay(btnId, slider, pctId) {
+        let timer = null;
+        document.getElementById(btnId).onclick = function() {
+            if(timer) { clearInterval(timer); timer = null; this.innerText = "▶"; return; }
+            this.innerText = "⏸";
+            timer = setInterval(() => {
+                let v = parseInt(slider.value);
+                if(v >= 100) { clearInterval(timer); timer = null; this.innerText = "▶"; return; }
+                slider.value = v + 1;
+                document.getElementById(pctId).innerText = slider.value;
+                renderTrack();
+            }, 40);
+        };
+    }
+    setupPlay("play-pre", sPre, "pct-pre");
+    setupPlay("play-ms", sMS, "pct-ms");
+    setupPlay("play-post", sPost, "pct-post");
+    window.onload = () => drawAxes();
 </script>
 
-
-</div>
 <script type="module" src="./star.js"></script>
 
 </body>
 </html>
-

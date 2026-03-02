@@ -1,0 +1,407 @@
+#Using calculated data
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Stellar Evolution</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    .info .val{
+      display: inline-block;
+      min-width: 140px;   /* tweak: 120–180 depending on your taste */
+    }
+
+    body{
+      margin: 0;
+      padding: 0;
+      background: #f4f6f8;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    .format{
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+
+    .title{
+      text-align: center;
+      margin: 0 0 30px 0;
+      font-weight: 600;
+    }
+
+    h3{
+      text-align: center;
+      color: #000000;
+      margin-top: 7px;
+      margin-bottom: 5px;
+    }
+
+    .container{
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .panel{
+      background-color: #e8f0f8;
+      border-radius: 12px;
+      padding: 15px;
+      height: 540px;
+      box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #star-view{
+      position: relative;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+      flex: 3;
+      min-width: 350px;
+    }
+
+    .info { flex: 0 0 auto; }
+
+    #scene { flex: 1 1 auto; min-height: 320px;}
+    
+    .mass-box{
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: auto;
+    }
+
+    .time-box{
+      margin-top: auto;
+      display: flex;
+      gap: 10px;
+      margin-top: auto;
+    }
+
+    .time-label{
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .TimeSlider {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 100%;
+      height: 20px;
+      background: #d3d3d3;
+      outline: none;
+      opacity: 0.7;
+      pointer-events: none; 
+      cursor: default;
+    }
+
+    .TimeSlider::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #759ec0;
+      cursor: default; 
+    }
+
+    .TimeSlider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      background: #759ec0;
+      cursor: default;
+    }
+
+    #hr-diagram{
+      flex: 2;
+      height: 540px;
+      min-width:350px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="format">
+
+  <h1 class="title">Stellar Evolution</h1> 
+
+  <div class="container">
+    
+    <div id="star-view" class="panel">
+      
+      <div class="info">
+        Absolute Magnitude: <span id="absMag">—</span><br>
+        Surface Temperature: <span id="surfTemp">—</span><br>
+        Evolutionary Stage: <span id="stage">—</span><br>
+        Age: <span id="age">—</span><br>
+        Mass: <span id="massReadout">—</span><br>
+      </div>
+      <div id="scene" style="width:100%; height:320px; border-radius:10px; overflow:hidden;"></div>
+
+      <div class="mass-box">
+        <div style="display:flex; align-items:center; gap:5px; margin-bottom:5px;">
+          <label>Mass:</label>
+          <select id="MassValues" style="width:120px;">
+            <option value="0.1">0.1</option>
+            <option value="0.5">0.5</option>
+            <option value="1">1</option>
+            <option value="3">3</option>
+            <option value="10">10</option>
+            <option value="100">100</option>
+          </select>
+          M<sub>&odot;</sub>
+        </div>
+      </div>
+
+      <div class="time-box" style="display:flex; flex-direction: column; gap: 10px; margin-top: auto;">
+        <div style="display:flex; align-items: center; gap: 10px;">
+          <button class="PlayButton" id="play-pre" data-index="1" type="button">&#9654;</button>
+          <span class="time-label">
+            Before main sequence: <span class="TimeDemo" id="pct-pre">0</span>%
+          </span>
+          <input type="range" id="time-pre" min="0" max="100" value="0" class="TimeSlider" style="flex:1;">
+      </div>
+
+        <div style="display:flex; align-items: center; gap: 10px;">
+          <button class="PlayButton" id="play-ms" data-index="2" type="button">&#9654;</button>
+          <span class="time-label">
+            Main sequence: <span class="TimeDemo" id="pct-ms">0</span>%
+          </span>
+          <input type="range" id="time-ms" min="0" max="100" value="0" class="TimeSlider" style="flex:1;">
+        </div>
+        
+        <div style="display:flex; align-items: center; gap: 10px;">
+          <button class="PlayButton" id="play-post" data-index="3" type="button">&#9654;</button>
+          <span class="time-label">
+            After main sequence: <span class="TimeDemo" id="pct-post">0</span>%
+          </span>
+          <input type="range" id="time-post" min="0" max="100" value="0" class="TimeSlider" style="flex:1;">
+        </div>
+      </div>
+      
+    </div>
+
+    <div id="hr-diagram" class="panel">
+      <h3>HR diagram</h3>
+      <canvas id="diagram" width="500" height="500"></canvas>
+    </div>
+
+  </div>
+
+  <script>
+    const canvas = document.getElementById("diagram");
+    const ctx = canvas.getContext("2d");
+    const cssWidth = 400;
+    const cssHeight = 480;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = cssWidth + "px";
+    canvas.style.height = cssHeight + "px";
+    canvas.width = cssWidth * dpr;
+    canvas.height = cssHeight * dpr;
+    ctx.scale(dpr,dpr);
+
+    const margin = {top: 30, right: 20, bottom: 50, left: 40};
+    const TotalWidth = cssWidth - margin.left - margin.right;
+    const TotalHeight = cssHeight - margin.top - margin.bottom;
+    //const spectralTypes = ["O","B","A","F","G","K","M"];
+    //const Xpos=[0.05,0.22,0.38,0.52,0.65,0.82,0.95];
+    const MagMin = -15;
+    const MagMax = 20;
+
+    let trailPoints = {preMS:[], MS:[], postMS:[]};
+
+    function YAxis(Mag){
+        return margin.top + TotalHeight * (Mag - MagMin) / (MagMax - MagMin);
+    }
+    function TempConversion(T){
+      const logT = Math.log10(Math.max(T,1500));
+      const logMax = Math.log10(65000);
+      const logMin = Math.log10(1500);
+      let pct = (logMax - logT)/(logMax-logMin);
+      pct = Math.max(0,Math.min(1,pct));
+      return pct * TotalWidth + margin.left;
+    }
+    function absMagnitudeFromLuminosity(L){
+      return 4.83 - 2.5*Math.log10(Math.max(L,1e-10)); 
+    }
+
+    function drawAxes(){
+      //const TempMin = 1000;
+      //const TempMax = 75000;
+      //function XAxis(Temp){
+      //  return margin.left + TotalWidth * (TempMax - Temp) / (TempMax - TempMin);
+      //}
+      ctx.clearRect(0,0,cssWidth,cssHeight);
+
+      const specs = [
+        { name: "O", T: 40000, color: "rgba(77, 109, 255, 0.35)" },
+        { name: "B", T: 20000, color: "rgba(170, 191, 255, 0.35)" },
+        { name: "A", T: 9000,  color: "rgba(255, 255, 255, 0.35)" },
+        { name: "F", T: 6800,  color: "rgba(255, 255, 212, 0.35)" },
+        { name: "G", T: 5600,  color: "rgba(255, 238, 0, 0.35)" },
+        { name: "K", T: 4500,  color: "rgba(255, 149, 0, 0.35)" },
+        { name: "M", T: 2800,  color: "rgba(255, 61, 61, 0.35)" }   
+      ];
+      
+      const grad = ctx.createLinearGradient(margin.left, 0, margin.left + TotalWidth, 0);
+      specs.forEach(s => {
+        let pos = (TempConversion(s.T) - margin.left) / TotalWidth;
+        pos = Math.max(0, Math.min(1, pos));
+        grad.addColorStop(pos, s.color);
+      });
+      ctx.fillStyle = grad;
+      ctx.fillRect(margin.left, margin.top, TotalWidth, TotalHeight);
+      
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#000";
+      ctx.fillText("Spectral Type", margin.left + TotalWidth/2, margin.top + TotalHeight + 40);
+      ctx.save();
+      ctx.translate(15,margin.top + TotalHeight/2);
+      ctx.rotate(-Math.PI/2);
+      ctx.textAlign = "center";
+      ctx.fillText("Absolute Magnitude",0,0);
+      ctx.restore();
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+        specs.forEach(s => {
+            const x = TempConversion(s.T);
+            ctx.beginPath();
+            ctx.moveTo(x, margin.top);
+            ctx.lineTo(x, margin.top + TotalHeight);
+            ctx.strokeStyle = "rgba(200, 200, 200, 0.5)";
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, margin.top + TotalHeight);
+            ctx.lineTo(x, margin.top + TotalHeight + 6);
+            ctx.strokeStyle = "#000";
+            ctx.stroke();
+            ctx.fillStyle = "#000";
+            ctx.fillText(s.name, x, margin.top + TotalHeight + 10);
+        });
+      //for(let t=TempMin; t<=TempMax; t+=9000){
+        //let x = XAxis(t);
+        //ctx.moveTo(x,margin.top + TotalHeight);
+        //ctx.lineTo(x,margin.top + TotalHeight +5);
+        //ctx.stroke();
+        //ctx.fillStyle = "#000";
+        //ctx.fillText(t,x,margin.top + TotalHeight + 8);
+        //ctx.strokeStyle = "#ccc";
+        //ctx.beginPath();
+        //ctx.moveTo(x,margin.top);
+        //ctx.lineTo(x,margin.top + TotalHeight);
+        //ctx.stroke();
+      //}
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for(let M=MagMin; M<=MagMax; M+=5){
+        let y = YAxis(M);
+        ctx.moveTo(margin.left-5,y);
+        ctx.lineTo(margin.left,y);
+        ctx.stroke();
+        ctx.fillStyle = "#000";
+        ctx.fillText(M,margin.left-8,y);
+        ctx.strokeStyle = "#ccc";
+        ctx.beginPath();
+        ctx.moveTo(margin.left-5,y);
+        ctx.lineTo(margin.left + TotalWidth,y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin.left,margin.top + TotalHeight);
+      ctx.lineTo(margin.left + TotalWidth, margin.top + TotalHeight);
+      ctx.moveTo(margin.left,margin.top);
+      ctx.lineTo(margin.left,margin.top + TotalHeight);
+      ctx.stroke();
+
+      function Labels(text, T, Mag, angle=0){
+        ctx.save();
+        ctx.translate(TempConversion(T), YAxis(Mag));
+        ctx.rotate(angle);
+        ctx.font = "12px sans-serif";
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text,0,0);
+        ctx.restore();
+      }
+      Labels("Main Sequence", 11000, 0, Math.PI/4);
+      Labels("White Dwarfs", 13000, 13);
+      Labels("Giants", 3700, 0);
+      Labels("Supergiants", 5000, -8);
+    }
+
+    function drawTrail(){
+      ctx.lineWidth = 2;
+
+      const colors = {
+        preMS: "#00008B",
+        MS: "#008000",
+        postMS: "#B22222"
+      };
+      
+      Object.keys(trailPoints).forEach(stage => {
+        const pts = trailPoints[stage];
+        if (pts.length < 1) return;
+
+        ctx.strokeStyle = colors[stage] || "#000000";
+        ctx.fillStyle = colors[stage] || "#000000";
+        ctx.beginPath();
+        ctx.moveTo(TempConversion(pts[0].T), YAxis(pts[0].Mag));
+        pts.forEach(p => ctx.lineTo(TempConversion(p.T), YAxis(p.Mag)));
+        ctx.stroke();
+
+        const last = pts[pts.length -1];
+        ctx.beginPath();
+        ctx.arc(TempConversion(last.T), YAxis(last.Mag), 1.5, 0, Math.PI*2);
+        ctx.fill();
+      });
+    }
+
+    window.hrChart = {
+      clear:() => {
+        trailPoints = {preMS:[], MS:[], postMS:[]};
+        drawAxes();
+      },
+      record: (stage, f01, L, T) => {
+        if (f01 <= 0 || !Number.isFinite(L) || !Number.isFinite(T)) return;
+        const Mag = absMagnitudeFromLuminosity(L);
+        trailPoints[stage] = trailPoints[stage].filter(p => p.f <= f01);
+        trailPoints[stage].push({f:f01, Mag:Mag, T:T});
+        drawAxes();
+        drawTrail();
+      }
+    };
+
+    window.onload = () => drawAxes();
+    
+    document.getElementById("MassValues").addEventListener("change", function() {
+      if (window.hrChart) window.hrChart.clear();
+      const sliders = ["time-pre", "time-ms", "time-post"];
+      sliders.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = 0;
+      });
+      const labels = ["pct-pre", "pct-ms", "pct-post"];
+      labels.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = "0";
+      });
+    });
+
+</script>
+
+
+</div>
+<script type="module" src="./star.js"></script>
+
+</body>
+</html>
+
+
