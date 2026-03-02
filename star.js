@@ -72,6 +72,7 @@ function applyProtostar(f01) {
   const state = protostarState(STAR.mass, f01, 0);
   applyStarVisuals(RENDER, { ...state, M: STAR.mass, f01, stage: "proto" });
   setReadoutsFromState(state, "Protostar");
+  if (window.hrChart) window.hrChart.record("preMS",f01,state.L,state.T);
 }
 
 function applyMainSequence(f01) {
@@ -79,6 +80,7 @@ function applyMainSequence(f01) {
   const state = mainSequenceState(STAR.mass, f01, preAge);
   applyStarVisuals(RENDER, { ...state, M: STAR.mass, f01, stage: "ms" });
   setReadoutsFromState(state, "Main sequence");
+  if (window.hrChart) window.hrChart.record("MS",f01,state.L,state.T);
 }
 
 function applyPostMainSequence(f01) {
@@ -95,11 +97,14 @@ function applyPostMainSequence(f01) {
 
   applyStarVisuals(RENDER, { ...state, M: STAR.mass, f01, stage: state?.remnant ?? "post" });
   setReadoutsFromState(state, stageName);
+  if (window.hrChart) window.hrChart.record("postMS",f01,state.L,state.T);
 }
 
 function setMass(M) {
   if (!Number.isFinite(M)) return;
   STAR.mass = M;
+
+  if (window.hrChart) window.hrChart.clear();
 
   const preV = (parseFloat(preSlider.value) || 0) / 100;
   const msV = (parseFloat(msSlider.value) || 0) / 100;
