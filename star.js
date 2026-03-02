@@ -25,8 +25,34 @@ const zoomOutBtn = document.getElementById("zoomOut");
 
 const readouts = getStarReadouts();
 
-const STAR = { mass: 1.0, spin: 0.25 };
+
+const BASE_SPIN = 0.25;
+const STAR = { mass: 1.0, spin: BASE_SPIN };
+let activeStage = "pre";  
+let targetF01 = 0.0;      
+let currentF01 = 0.0;      
 const RENDER = createStarScene(container);
+
+const fColor = 1.0;
+activeStage = "pre";
+targetF01 = (parseFloat(preSlider.value) || 0) / 100;
+currentF01 = targetF01;
+applyProtostar(currentF01);
+
+function smoothTo(current, target, dt, sharpness = 10) {
+  // Exponential smoothing: higher sharpness = faster catch-up
+  const a = 1 - Math.exp(-sharpness * dt);
+  return current + (target - current) * a;
+}
+
+function switchStage(stage, f01) {
+  const changed = (activeStage !== stage);
+  activeStage = stage;
+  targetF01 = f01;
+
+  // Snap only once when you switch stage (pre->ms->post), not every update tick
+  if (changed) currentF01 = f01;
+}
 
 setupDragControls(RENDER.renderer.domElement, RENDER.starGroup);
 setupZoomControls({
@@ -70,6 +96,7 @@ function resetOtherStages(which) {
 
 function applyProtostar(f01) {
   const state = protostarState(STAR.mass, f01, 0);
+  STAR.spin = BASE_SPIN * (state.spinMul ?? 1.0);
   applyStarVisuals(RENDER, { ...state, M: STAR.mass, f01, stage: "proto" });
   setReadoutsFromState(state, "Protostar");
   if (window.hrChart) window.hrChart.record("preMS",f01,state.L,state.T);
@@ -78,6 +105,7 @@ function applyProtostar(f01) {
 function applyMainSequence(f01) {
   const preAge = protostarDurationYears(STAR.mass);
   const state = mainSequenceState(STAR.mass, f01, preAge);
+  STAR.spin = BASE_SPIN * (state.spinMul ?? 1.0);
   applyStarVisuals(RENDER, { ...state, M: STAR.mass, f01, stage: "ms" });
   setReadoutsFromState(state, "Main sequence");
   if (window.hrChart) window.hrChart.record("MS",f01,state.L,state.T);
@@ -89,13 +117,16 @@ function applyPostMainSequence(f01) {
   const offset = preAge + msAge;
 
   const state = postMainSequenceState(STAR.mass, f01, offset);
+    STAR.spin = 0.25 * (state.spinMul ?? 1.0);
 
   let stageName = "After main sequence";
+  if (state?.remnant === "giant") stageName = "Red giant";
   if (state?.remnant === "wd") stageName = "White dwarf";
   if (state?.remnant === "ns") stageName = "Neutron star";
   if (state?.remnant === "bh") stageName = "Black hole";
 
-  applyStarVisuals(RENDER, { ...state, M: STAR.mass, f01, stage: state?.remnant ?? "post" });
+  const fColor = 1.0 + 0.2 * f01; // small continuation (tweak 0.2–0.6)
+  applyStarVisuals(RENDER, { ...state, M: STAR.mass, f01, fColor, stage: state?.remnant ?? "post" });
   setReadoutsFromState(state, stageName);
   if (window.hrChart) window.hrChart.record("postMS",f01,state.L,state.T);
 }
@@ -103,16 +134,6 @@ function applyPostMainSequence(f01) {
 function setMass(M) {
   if (!Number.isFinite(M)) return;
   STAR.mass = M;
-
-  if (window.hrChart) window.hrChart.clear();
-
-  const preV = (parseFloat(preSlider.value) || 0) / 100;
-  const msV = (parseFloat(msSlider.value) || 0) / 100;
-  const postV = (parseFloat(postSlider.value) || 0) / 100;
-
-  if (postV > 0) applyPostMainSequence(postV);
-  else if (msV > 0) applyMainSequence(msV);
-  else applyProtostar(preV);
 }
 
 massSelect?.addEventListener("change", () => setMass(parseFloat(massSelect.value)));
@@ -127,9 +148,9 @@ createStageController({
   pctEl: prePct,
   onChange01: (f01) => {
     resetOtherStages("pre");
-    applyProtostar(f01);
+    switchStage("pre", f01);
   },
-  intervalMs: 60,
+  intervalMs: 150,
 });
 
 createStageController({
@@ -138,9 +159,9 @@ createStageController({
   pctEl: msPct,
   onChange01: (f01) => {
     resetOtherStages("ms");
-    applyMainSequence(f01);
+    switchStage("ms", f01);
   },
-  intervalMs: 60,
+  intervalMs: 150,
 });
 
 createStageController({
@@ -149,9 +170,9 @@ createStageController({
   pctEl: postPct,
   onChange01: (f01) => {
     resetOtherStages("post");
-    applyPostMainSequence(f01);
+    switchStage("post", f01);
   },
-  intervalMs: 60,
+  intervalMs: 150,
 });
 
 if (massSelect) setMass(parseFloat(massSelect.value));
@@ -159,9 +180,17 @@ applyProtostar((parseFloat(preSlider.value) || 0) / 100);
 
 let lastT = performance.now();
 const toCam = new THREE.Vector3();
+if (RENDER.blackHole && RENDER.blackHole.disk?.visible) {
+    RENDER.blackHole.update(t * 0.001, toCam, RENDER.starGroup.scale.x);
+}
 
 function animate(t) {
   const dt = (t - lastT) / 1000;
+  currentF01 = smoothTo(currentF01, targetF01, dt, 12); // tweak 8–20
+
+  if (activeStage === "pre") applyProtostar(currentF01);
+  else if (activeStage === "ms") applyMainSequence(currentF01);
+  else applyPostMainSequence(currentF01);
   lastT = t;
 
   RENDER.starGroup.rotation.y += STAR.spin * dt;

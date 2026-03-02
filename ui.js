@@ -88,7 +88,7 @@ export function createStageController({
   });
 
   pctEl.textContent = slider.value;
-
+  
   return { setPct, start, stop, isPlaying: () => !!timer };
 }
 
