@@ -212,7 +212,7 @@
         "0.1": [{ T: 2700, L: 0.5 }, { T: 3100, L: 0.01 }, { T: 3350, L: 0.0035 }],
         "0.5": [{ T: 3200, L: 20 }, { T: 3800, L: 0.5 }, { T: 4600, L: 0.15 }],
         "1": [{ T: 3600, L: 80 }, { T: 4500, L: 1.5 }, { T: 5000, L: 0.5 }, { T: 5800, L: 0.3 }], 
-        "3": [{ T: 4000, L: 200 }, { T: 6000, L: 15 }, { T: 10000, L: 30 }, { T: 12500, L: 55 }], // 调高 L 值上移轨迹
+        "3": [{ T: 4000, L: 200 }, { T: 6000, L: 15 }, { T: 10000, L: 30 }, { T: 12500, L: 55 }],
         "10": [{ T: 4500, L: 150000 }, { T: 8500, L: 2000 }, { T: 22000, L: 10000 }, { T: 32000, L: 25000 }],
         "100": [{ T: 5500, L: 4500000 }, { T: 22000, L: 800000 }, { T: 32000, L: 1500000 }]
     };
@@ -330,7 +330,7 @@
         let lastX, lastY;
 
         if (pts && valPre > 0) {
-            ctx.strokeStyle = "#00008B"; ctx.lineWidth = 3; ctx.beginPath();
+            ctx.strokeStyle = "#00008B"; ctx.lineWidth = 2; ctx.beginPath();
             const start = pts[0];
             ctx.moveTo(TempConversion(start.T), YAxis(absMagnitudeFromLuminosity(start.L)));
             const res = 150;
@@ -355,7 +355,7 @@
             const currX = x0 + (msEndX - x0) * valMS; 
             const currY = y0 + (msEndY - y0) * valMS; 
 
-            ctx.strokeStyle = "#008000"; ctx.lineWidth = 3; ctx.beginPath();
+            ctx.strokeStyle = "#008000"; ctx.lineWidth = 2; ctx.beginPath();
             ctx.moveTo(x0, y0);
             ctx.lineTo(currX, currY);
             ctx.stroke();
@@ -365,16 +365,23 @@
 
             if (valMS >= 1 && valPost > 0) {
                 const m = parseFloat(mKey);
-                ctx.strokeStyle = "#B22222"; ctx.lineWidth = 3; ctx.beginPath();
+                ctx.strokeStyle = "#B22222"; ctx.lineWidth = 2; ctx.beginPath();
                 ctx.moveTo(msEndX, msEndY);
                 
                 let px = msEndX, py = msEndY;
 
                 if (m < 10) {
                     let targetL = 200;
-                    if (m === 3) targetL = 800;
-                    if (m === 0.1) targetL = 0.01; 
-                    
+                    if (m == 3) {
+                      targetL = 800;
+                      targetT = 3600;
+                    } else if (m == 0.1) {
+                      targetL = 1.1;
+                      targetT = 2500;
+                    } else if (m == 1) {
+                      targetL = 200;
+                      targetT = 3600;
+                    }
                     const giantX = TempConversion(3600);
                     const giantY = YAxis(absMagnitudeFromLuminosity(targetL));
                     const farLeftX = TempConversion(40000); 
