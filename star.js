@@ -2,7 +2,12 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 
 import { getTimeUI, getStarReadouts, createStageController } from "./ui.js";
-import { createStarScene, applyStarVisuals, setupDragControls, setupZoomControls } from "./render.js";
+import {
+  createStarScene,
+  applyStarVisuals,
+  setupDragControls,
+  setupZoomControls
+} from "./render.js";
 
 import {
   protostarState,
@@ -21,11 +26,12 @@ const [prePct, msPct, postPct] = timeUI.outputs;
 const container = document.getElementById("scene");
 const massSelect = document.getElementById("MassValues");
 
-// These are fine even if they don't exist yet
 const zoomInBtn = document.getElementById("zoomIn");
 const zoomOutBtn = document.getElementById("zoomOut");
 
 const readouts = getStarReadouts();
+const zoomSlider = readouts.zoomSliderEl;
+const zoomPctEl = readouts.zoomPctEl;
 
 const BASE_SPIN = 0.25;
 const STAR = { mass: 1.0, spin: BASE_SPIN };
@@ -36,7 +42,6 @@ let currentF01 = 0.0;
 
 const RENDER = createStarScene(container);
 
-activeStage = "pre";
 targetF01 = (parseFloat(preSlider?.value) || 0) / 100;
 currentF01 = targetF01;
 
@@ -54,11 +59,14 @@ function switchStage(stage, f01) {
 }
 
 setupDragControls(RENDER.renderer.domElement, RENDER.starGroup);
+
 setupZoomControls({
   camera: RENDER.camera,
   domElement: RENDER.renderer.domElement,
   zoomInBtn,
   zoomOutBtn,
+  zoomSlider,
+  zoomPctEl,
   aimCamera: RENDER.aimCamera,
 });
 
@@ -67,6 +75,36 @@ function formatAge(years) {
   if (years < 1e6) return `${Math.round(years / 1e3)} thousand years`;
   if (years < 1e9) return `${(years / 1e6).toFixed(1)} million years`;
   return `${(years / 1e9).toFixed(2)} billion years`;
+}
+
+function setCompositionReadouts(H, He) {
+  if (readouts.hPctEl) readouts.hPctEl.textContent = `${Math.round(H)}%`;
+  if (readouts.hePctEl) readouts.hePctEl.textContent = `${Math.round(He)}%`;
+}
+
+function compositionForStage(stage, f01, remnant = null) {
+  if (stage === "pre") {
+    return { H: 74, He: 24 };
+  }
+
+  if (stage === "ms") {
+    return {
+      H: 74 + (10 - 74) * f01,
+      He: 24 + (88 - 24) * f01
+    };
+  }
+
+  if (stage === "post") {
+    if (remnant === "ns" || remnant === "bh") {
+      return { H: 0, He: 0 };
+    }
+    return {
+      H: 10 + (0 - 10) * f01,
+      He: 88 + (98 - 88) * f01
+    };
+  }
+
+  return { H: 74, He: 24 };
 }
 
 function setReadoutsFromState({ L, T, ageYears }, stageName) {
@@ -102,6 +140,24 @@ function resetOtherStages(which) {
     postSlider.value = "0";
     postPct.textContent = "0";
   }
+
+  window.renderTrack?.();
+}
+
+function resetToInitialStage() {
+  preSlider.value = "0";
+  msSlider.value = "0";
+  postSlider.value = "0";
+
+  prePct.textContent = "0";
+  msPct.textContent = "0";
+  postPct.textContent = "0";
+
+  activeStage = "pre";
+  targetF01 = 0;
+  currentF01 = 0;
+
+  window.renderTrack?.();
 }
 
 function applyProtostar(f01) {
@@ -114,6 +170,9 @@ function applyProtostar(f01) {
     f01,
     stage: "proto"
   });
+
+  const comp = compositionForStage("pre", f01);
+  setCompositionReadouts(comp.H, comp.He);
 
   setReadoutsFromState(state, "Protostar");
 }
@@ -130,6 +189,9 @@ function applyMainSequence(f01) {
     stage: "ms"
   });
 
+  const comp = compositionForStage("ms", f01);
+  setCompositionReadouts(comp.H, comp.He);
+
   setReadoutsFromState(state, "Main sequence");
 }
 
@@ -141,13 +203,23 @@ function applyPostMainSequence(f01) {
   const state = postMainSequenceState(STAR.mass, f01, offset);
   STAR.spin = BASE_SPIN * (state.spinMul ?? 1.0);
 
+  const comp = compositionForStage("post", f01, state?.remnant ?? null);
+  setCompositionReadouts(comp.H, comp.He);
+
   let stageName = "After main sequence";
-  if (state?.remnant === "giant") stageName = "Red giant";
+  if (state?.remnant === "giant") {
+    stageName = STAR.mass >= 8 ? "Red supergiant" : "Red giant";
+  }
   if (state?.remnant === "wd") stageName = "White dwarf";
   if (state?.remnant === "ns") stageName = "Neutron star";
   if (state?.remnant === "bh") stageName = "Black hole";
 
-  applyStarVisuals(RENDER, { ...state, M: STAR.mass, f01, stage: state?.remnant ?? "post" });
+  applyStarVisuals(RENDER, {
+    ...state,
+    M: STAR.mass,
+    f01,
+    stage: state?.remnant ?? "post"
+  });
 
   setReadoutsFromState(state, stageName);
 }
@@ -155,11 +227,8 @@ function applyPostMainSequence(f01) {
 function setMass(M) {
   if (!Number.isFinite(M)) return;
   STAR.mass = M;
-
-  // Re-render current stage immediately on mass change
-  if (activeStage === "pre") applyProtostar(currentF01);
-  else if (activeStage === "ms") applyMainSequence(currentF01);
-  else applyPostMainSequence(currentF01);
+  resetToInitialStage();
+  applyProtostar(0);
 }
 
 massSelect?.addEventListener("change", () => {
@@ -203,8 +272,11 @@ createStageController({
   intervalMs: 150,
 });
 
-if (massSelect) setMass(parseFloat(massSelect.value));
-applyProtostar((parseFloat(preSlider?.value) || 0) / 100);
+if (massSelect) {
+  setMass(parseFloat(massSelect.value));
+} else {
+  applyProtostar((parseFloat(preSlider?.value) || 0) / 100);
+}
 
 let lastT = performance.now();
 const toCam = new THREE.Vector3();

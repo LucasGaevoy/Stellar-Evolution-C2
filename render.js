@@ -2,6 +2,8 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 import { clamp } from "./ui.js";
 
+/* ------------------------- textures / helpers ------------------------- */
+
 function makeShellTexture() {
   const c = document.createElement("canvas");
   c.width = c.height = 256;
@@ -41,6 +43,40 @@ function makeHaloTexture() {
   return tex;
 }
 
+function makePhotonRingTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const ctx = c.getContext("2d");
+
+  ctx.clearRect(0, 0, 256, 256);
+
+  const g = ctx.createRadialGradient(128, 128, 50, 128, 128, 128);
+  g.addColorStop(0.00, "rgba(255,255,255,0.0)");
+  g.addColorStop(0.55, "rgba(255,255,255,0.0)");
+  g.addColorStop(0.68, "rgba(255,255,255,0.25)");
+  g.addColorStop(0.74, "rgba(255,255,255,0.65)");
+  g.addColorStop(0.80, "rgba(255,255,255,0.20)");
+  g.addColorStop(1.00, "rgba(255,255,255,0.0)");
+
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 256, 256);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function smooth01(x) {
+  const t = clamp(x, 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function lerpColor(a, b, t) {
+  return a.clone().lerp(b, clamp(t, 0, 1));
+}
+
+/* ------------------------------ proto disk ------------------------------ */
+
 export function addDustDisk(scene, starGroup) {
   const geom = new THREE.RingGeometry(1.2, 3.2, 128);
 
@@ -59,6 +95,8 @@ export function addDustDisk(scene, starGroup) {
   scene.add(disk);
   return disk;
 }
+
+/* ------------------------------ black hole ------------------------------ */
 
 function makeAccretionDiskMaterial() {
   return new THREE.ShaderMaterial({
@@ -122,29 +160,6 @@ function makeAccretionDiskMaterial() {
   });
 }
 
-function makePhotonRingTexture() {
-  const c = document.createElement("canvas");
-  c.width = c.height = 256;
-  const ctx = c.getContext("2d");
-
-  ctx.clearRect(0, 0, 256, 256);
-
-  const g = ctx.createRadialGradient(128, 128, 50, 128, 128, 128);
-  g.addColorStop(0.00, "rgba(255,255,255,0.0)");
-  g.addColorStop(0.55, "rgba(255,255,255,0.0)");
-  g.addColorStop(0.68, "rgba(255,255,255,0.25)");
-  g.addColorStop(0.74, "rgba(255,255,255,0.65)");
-  g.addColorStop(0.80, "rgba(255,255,255,0.20)");
-  g.addColorStop(1.00, "rgba(255,255,255,0.0)");
-
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 256, 256);
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
 function createBlackHoleRig(scene, starGroup) {
   const geom = new THREE.RingGeometry(1.2, 3.4, 196, 2);
   const mat = makeAccretionDiskMaterial();
@@ -199,6 +214,8 @@ function createBlackHoleRig(scene, starGroup) {
   };
 }
 
+/* ------------------------------ scene setup ------------------------------ */
+
 export function createStarScene(container) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0b0f18);
@@ -210,7 +227,7 @@ export function createStarScene(container) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = 1.15;
 
   renderer.domElement.style.display = "block";
   renderer.domElement.style.width = "100%";
@@ -230,6 +247,7 @@ export function createStarScene(container) {
   resize();
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.05));
+
   const key = new THREE.DirectionalLight(0xffffff, 0.7);
   key.position.set(3, 3, 3);
   scene.add(key);
@@ -299,60 +317,135 @@ export function createStarScene(container) {
   };
 }
 
+/* ------------------------------ colour model ------------------------------ */
+
+/*
+  This restores the old successful strategy:
+  - base colour comes from a continuous temperature-like scalar
+  - only mild stage-aware corrections are applied
+  - light + halo are tinted consistently from the same colour
+*/
+
 export function colorFromTempK(T) {
   const t = clamp(T, 2500, 40000);
   const x = (Math.log10(t) - Math.log10(2500)) / (Math.log10(40000) - Math.log10(2500));
 
-  const red = new THREE.Color(0xff5a1f);
-  const warm = new THREE.Color(0xffe4d2);
-  const white = new THREE.Color(0xf8f6ff);
-  const blue = new THREE.Color(0x9fc2ff);
+  const cool = new THREE.Color(0xff6a3a);
+  const mid = new THREE.Color(0xffffff);
+  const hot = new THREE.Color(0x4d86ff);
 
-  if (x < 0.42) {
-    return red.clone().lerp(warm, x / 0.42);
+  if (x < 0.55) {
+    return cool.clone().lerp(mid, x / 0.55);
   }
-  if (x < 0.68) {
-    return warm.clone().lerp(white, (x - 0.42) / (0.68 - 0.42));
-  }
-  return white.clone().lerp(blue, (x - 0.68) / (1.0 - 0.68));
+  return mid.clone().lerp(hot, (x - 0.55) / (1.0 - 0.55));
 }
 
-function visualTempK(state) {
-  const { T, stage = "ms", f01 = 0 } = state;
+function visualColorTemperature(state) {
+  const { T, M = 1, f01 = 0, stage = "ms" } = state;
 
-  if (!Number.isFinite(T)) return 5800;
+  const fc = smooth01(f01);
+  const big = clamp(Math.log10(Math.max(0.1, M)), 0, 2);
+
+  // Base "old render.js" behaviour
+  const msStartBoost = 1.0 + 0.35 * big;
+  const msTimeCool = 1.0 + 0.55 * big * fc;
 
   if (stage === "proto") {
-    return T * 1.05;
+    // Important: proto should approach the SAME colour rule as MS when f01 -> 1
+    let protoStartBoost = msStartBoost;
+    let protoTimeCool = msTimeCool;
+
+    if (M <= 0.3) {
+      protoStartBoost *= 0.95;
+      protoTimeCool *= 0.95;
+    } else if (M <= 1.5) {
+      protoStartBoost *= 1.06;
+      protoTimeCool *= 1.00;
+    } else if (M >= 8.0) {
+      // massive proto stars start slightly warmer/whiter,
+      // but MUST converge back to MS rule by the end
+      const extra = 0.10 * (1.0 - fc);
+      protoStartBoost *= (1.0 + extra);
+    } else {
+      const extra = 0.06 * (1.0 - fc);
+      protoStartBoost *= (1.0 + extra);
+    }
+
+    return (T * protoStartBoost) / protoTimeCool;
   }
 
   if (stage === "ms") {
-    const coolFactor = 1.0 - 0.18 * f01;
-    return T * coolFactor;
+    let startBoost = msStartBoost;
+    let timeCool = msTimeCool;
+
+    if (M <= 0.8) {
+      startBoost *= 0.95;
+    } else if (M <= 1.2) {
+      // solar stars: keep near-white early, slightly warmer late
+      startBoost *= 1.02;
+      timeCool *= 1.02;
+    } else if (M >= 8) {
+      startBoost *= 1.08;
+      timeCool *= 0.98;
+    }
+
+    return (T * startBoost) / timeCool;
   }
 
   if (stage === "giant") {
-    return Math.min(T, 4200);
+    const giantCool = M >= 8 ? 0.72 + 0.18 * fc : 0.78 + 0.16 * fc;
+    return T * giantCool;
   }
 
-  if (stage === "wd") return Math.max(T, 9000);
-  if (stage === "ns") return Math.max(T, 20000);
+  if (stage === "wd") {
+    return Math.max(T, 14000);
+  }
 
-  return T;
+  if (stage === "ns") {
+    return Math.max(T, 22000);
+  }
+
+  return (T * msStartBoost) / msTimeCool;
 }
+
+function displayGlow(state) {
+  const { L, M = 1, stage = "ms", f01 = 0 } = state;
+
+  let glow = clamp(Math.log10(Math.max(L, 1e-6) + 1.0) * 1.35 + 1.55, 1.35, 9.0);
+
+  if (stage === "proto") {
+    glow *= M <= 0.3 ? 0.95 : 1.00;
+  } else if (stage === "giant") {
+    glow *= 1.06 + 0.08 * smooth01(f01);
+  } else if (stage === "wd") {
+    glow *= 0.85;
+  } else if (stage === "ns") {
+    glow *= 0.95;
+  }
+
+  return glow;
+}
+
+function haloColorFromStarColor(c, stage) {
+  if (stage === "proto") {
+    return lerpColor(c, new THREE.Color(0xffffff), 0.30);
+  }
+  if (stage === "giant") {
+    return lerpColor(c, new THREE.Color(0xffffff), 0.38);
+  }
+  return lerpColor(c, new THREE.Color(0xffffff), 0.45);
+}
+
+/* ------------------------------ apply visuals ------------------------------ */
 
 export function applyStarVisuals(render, state) {
   const { starGroup, starMat, starLight, halo, shell, disk, aimCamera } = render;
   const { L, T, R, M = 1, f01 = 0, stage = "ms" } = state;
 
-  const Rv = R;
+  const Rv = Math.max(R, 0.08);
   starGroup.scale.setScalar(Rv);
 
-  const glow = clamp(Math.log10(Math.max(L, 1e-6) + 1.0) * 1.35 + 1.55, 1.4, 9.5);
-
-  const Tvis = visualTempK(state);
-  const c = colorFromTempK(Tvis);
-
+  // black hole branch
   if (stage === "bh") {
     if (starMat?.uniforms?.uColor) starMat.uniforms.uColor.value.setRGB(0.0, 0.0, 0.0);
     if (starMat?.uniforms?.uGlow) starMat.uniforms.uGlow.value = 0.01;
@@ -369,8 +462,8 @@ export function applyStarVisuals(render, state) {
       render.blackHole.setVisible(true);
 
       const strength = clamp(
-        0.75 + Math.log10(Math.max(1e-6, L + 1.0)) * 0.12,
-        0.65,
+        0.65 + Math.log10(Math.max(1e-6, L + 1.0)) * 0.15,
+        0.55,
         1.25
       );
 
@@ -379,7 +472,7 @@ export function applyStarVisuals(render, state) {
       }
 
       if (render.blackHole.ring?.material) {
-        render.blackHole.ring.material.opacity = clamp(0.20 + 0.10 * strength, 0.0, 0.55);
+        render.blackHole.ring.material.opacity = clamp(0.22 + 0.08 * strength, 0.0, 0.55);
       }
     }
 
@@ -389,37 +482,53 @@ export function applyStarVisuals(render, state) {
     if (render.blackHole) render.blackHole.setVisible(false);
   }
 
+  const T_for_color = visualColorTemperature(state);
+  let c = colorFromTempK(T_for_color);
+  const glow = displayGlow(state);
+
+  // tiny final correction only, to help giants read properly
+  if (stage === "giant") {
+    const giantTint = M >= 8
+      ? new THREE.Color(0xff815a)
+      : new THREE.Color(0xff8c60);
+    c = c.clone().lerp(giantTint, 0.10 + 0.18 * smooth01(f01));
+  }
+
   if (starMat?.uniforms?.uColor) {
     starMat.uniforms.uColor.value.copy(c);
   }
 
-  const solarBoost = 1.0 + 0.55 * Math.exp(-Math.pow((M - 1.0) / 0.65, 2));
+  const solarBoost = 1.0 + 0.42 * Math.exp(-Math.pow((M - 1.0) / 0.70, 2));
   if (starMat?.uniforms?.uGlow) {
-    starMat.uniforms.uGlow.value = glow * 1.6 * solarBoost;
+    starMat.uniforms.uGlow.value = glow * 1.45 * solarBoost;
   }
 
   if (starMat?.uniforms?.uGranuleStrength) {
-    starMat.uniforms.uGranuleStrength.value = stage === "giant" ? 0.55 : 0.8;
+    starMat.uniforms.uGranuleStrength.value = stage === "giant" ? 0.50 : 0.78;
   }
 
   if (starMat?.uniforms?.uSpotStrength) {
-    starMat.uniforms.uSpotStrength.value = stage === "giant" ? 0.08 : 0.15;
+    starMat.uniforms.uSpotStrength.value = stage === "giant" ? 0.07 : 0.12;
   }
 
   starLight.color.copy(c);
-  starLight.intensity = glow * 3.4;
+  starLight.intensity = stage === "proto" ? glow * 2.4 : glow * 3.0;
 
   if (halo?.material) {
-    halo.material.color.copy(c);
+    halo.material.color.copy(haloColorFromStarColor(c, stage));
   }
-  halo.scale.setScalar(Rv * (4.4 + glow * 0.85));
-  halo.material.opacity = clamp(0.32 + glow * 0.10, 0, 0.95);
+  halo.scale.setScalar(Rv * (4.1 + glow * 0.80));
+  halo.material.opacity = clamp(
+    stage === "proto" ? 0.16 + glow * 0.05 : 0.20 + glow * 0.06,
+    0,
+    stage === "proto" ? 0.40 : 0.55
+  );
 
   const ejecta = Number.isFinite(state.ejecta) ? state.ejecta : 0.0;
   const shellR = Number.isFinite(state.shellR) ? state.shellR : Rv;
 
   if (shell?.material) {
-    shell.material.color.copy(c);
+    shell.material.color.copy(c.clone().lerp(new THREE.Color(0xffffff), 0.20));
     shell.material.opacity = clamp(0.55 * ejecta, 0, 0.65);
   }
 
@@ -448,6 +557,8 @@ export function applyStarVisuals(render, state) {
   aimCamera();
 }
 
+/* ------------------------------ controls ------------------------------ */
+
 export function setupDragControls(domElement, starGroup) {
   let dragging = false;
   let lastX = 0;
@@ -474,24 +585,68 @@ export function setupDragControls(domElement, starGroup) {
   });
 }
 
-export function setupZoomControls({ camera, domElement, zoomInBtn, zoomOutBtn, aimCamera }) {
-  function zoomBy(delta) {
-    camera.position.z = clamp(camera.position.z + delta, 0.3, 500);
+export function setupZoomControls({
+  camera,
+  domElement,
+  zoomInBtn,
+  zoomOutBtn,
+  zoomSlider,
+  zoomPctEl,
+  aimCamera
+}) {
+  const Z_NEAR = 1.2;
+  const Z_FAR = 40.0;
+
+  function pctToZ(pct) {
+    const t = clamp(pct / 100, 0, 1);
+    const eased = t * t;
+    return Z_FAR + (Z_NEAR - Z_FAR) * eased;
+  }
+
+  function zToPct(z) {
+    const t = (z - Z_FAR) / (Z_NEAR - Z_FAR);
+    const clamped = clamp(t, 0, 1);
+    return Math.round(Math.sqrt(clamped) * 100);
+  }
+
+  function syncZoomUI() {
+    const pct = zToPct(camera.position.z);
+    if (zoomSlider) zoomSlider.value = String(pct);
+    if (zoomPctEl) zoomPctEl.textContent = String(pct);
+  }
+
+  function setZoomPct(pct) {
+    camera.position.z = pctToZ(pct);
     aimCamera();
+    syncZoomUI();
+  }
+
+  function zoomBy(delta) {
+    camera.position.z = clamp(camera.position.z + delta, Z_NEAR, Z_FAR);
+    aimCamera();
+    syncZoomUI();
   }
 
   domElement.addEventListener(
     "wheel",
     (e) => {
       e.preventDefault();
-      zoomBy(Math.sign(e.deltaY) * 1.8);
+      zoomBy(Math.sign(e.deltaY) * 1.6);
     },
     { passive: false }
   );
 
-  zoomInBtn?.addEventListener("click", () => zoomBy(-2.2));
-  zoomOutBtn?.addEventListener("click", () => zoomBy(+2.2));
+  zoomInBtn?.addEventListener("click", () => zoomBy(-1.6));
+  zoomOutBtn?.addEventListener("click", () => zoomBy(+1.6));
+
+  zoomSlider?.addEventListener("input", () => {
+    setZoomPct(parseInt(zoomSlider.value, 10) || 0);
+  });
+
+  syncZoomUI();
 }
+
+/* ------------------------------ star shader ------------------------------ */
 
 export function makeStarMaterial() {
   return new THREE.ShaderMaterial({
@@ -504,7 +659,7 @@ export function makeStarMaterial() {
       uSpotStrength: { value: 0.15 },
       uSpin: { value: 0.02 },
       uDetail: { value: 1.0 },
-      uMicro: { value: 0.5 },
+      uMicro: { value: 1.0 },
     },
 
     vertexShader: `

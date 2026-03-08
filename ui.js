@@ -5,29 +5,37 @@ export function getTimeUI() {
     document.getElementById("time-ms"),
     document.getElementById("time-post"),
   ];
+
   const playButtons = [
     document.getElementById("play-pre"),
     document.getElementById("play-ms"),
     document.getElementById("play-post"),
   ];
+
   const outputs = [
     document.getElementById("pct-pre"),
     document.getElementById("pct-ms"),
     document.getElementById("pct-post"),
   ];
+
   if (sliders.some(x => !x) || playButtons.some(x => !x) || outputs.some(x => !x)) {
     console.error("Time UI missing:", { sliders, playButtons, outputs });
   }
+
   return { sliders, playButtons, outputs };
 }
 
 export function getStarReadouts() {
   return {
+    hPctEl: document.getElementById("hPct"),
+    hePctEl: document.getElementById("hePct"),
     absMagEl: document.getElementById("absMag"),
     surfTempEl: document.getElementById("surfTemp"),
     stageEl: document.getElementById("stage"),
     ageEl: document.getElementById("age"),
     massEl: document.getElementById("massReadout"),
+    zoomPctEl: document.getElementById("zoomPct"),
+    zoomSliderEl: document.getElementById("3D-zoom"),
   };
 }
 
@@ -67,7 +75,8 @@ export function createStageController({
 
   function start() {
     const current = parseInt(slider.value, 10) || 0;
-    if (current >= 100) setPct(loop ? 0 : 0);
+    if (current >= 100) setPct(0);
+
     playBtn.innerHTML = "&#9208;";
     timer = setInterval(() => {
       const v = parseInt(slider.value, 10) || 0;
@@ -80,7 +89,10 @@ export function createStageController({
     }, intervalMs);
   }
 
-  playBtn.addEventListener("click", () => (timer ? stop() : start()));
+  playBtn.addEventListener("click", () => {
+    if (timer) stop();
+    else start();
+  });
 
   slider.addEventListener("input", () => {
     if (timer) stop();
@@ -88,7 +100,7 @@ export function createStageController({
   });
 
   pctEl.textContent = slider.value;
-  
+
   return { setPct, start, stop, isPlaying: () => !!timer };
 }
 
