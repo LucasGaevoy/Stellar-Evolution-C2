@@ -148,8 +148,13 @@
     <div id="star-view" class="panel">
       
       <div class="info">
+<<<<<<< HEAD
         <!--Hydrogen Percentage: <span id="H%">—</span><br>
         Helium Percentage: <span id="He%">—</span><br>-->
+=======
+        Hydrogen Percentage: <span id="hPct">—</span><br>
+        Helium Percentage: <span id="hePct">—</span><br>
+>>>>>>> f348b0f0df5ca51095871e1da3eb91d906da97e1
         Evolutionary Stage: <span id="stage">—</span><br>
         Age: <span id="age">—</span><br>
       </div>
@@ -172,7 +177,7 @@
 <!--
       <div style="display:flex; align-items: center; gap: 10px;">
         <span class="label-3DSlider">
-              3D Animation zoom: <span class="" id="">50</span>%
+              3D Animation zoom: <span id="zoomPct">50</span>%
         </span>
         <input type="range" id="3D-zoom" min="0" max="100" value="50" class="Sliderfor3D" style="flex:1;">
       </div>
@@ -450,40 +455,30 @@
         }
     }
 
-    const sPre = document.getElementById("time-pre");
+ const sPre = document.getElementById("time-pre");
     const sMS = document.getElementById("time-ms");
     const sPost = document.getElementById("time-post");
-    sPre.oninput = function() { document.getElementById("pct-pre").innerText = this.value; renderTrack(); };
-    sMS.oninput = function() { document.getElementById("pct-ms").innerText = this.value; renderTrack(); };
-    sPost.oninput = function() { document.getElementById("pct-post").innerText = this.value; renderTrack(); };
-    document.getElementById("MassValues").onchange = function() {
-        sPre.value = 0; sMS.value = 0; sPost.value = 0;
-        document.getElementById("pct-pre").innerText = "0";
-        document.getElementById("pct-ms").innerText = "0";
-        document.getElementById("pct-post").innerText = "0";
-        renderTrack();
-    };
-    function setupPlay(btnId, slider, pctId) {
-        let timer = null;
-        document.getElementById(btnId).onclick = function() {
-            if(timer) { clearInterval(timer); timer = null; this.innerText = "▶"; return; }
-            this.innerText = "⏸";
-            timer = setInterval(() => {
-                let v = parseInt(slider.value);
-                if(v >= 100) { clearInterval(timer); timer = null; this.innerText = "▶"; return; }
-                slider.value = v + 1;
-                document.getElementById(pctId).innerText = slider.value;
-                renderTrack();
-            }, 40);
-        };
-    }
-    setupPlay("play-pre", sPre, "pct-pre");
-    setupPlay("play-ms", sMS, "pct-ms");
-    setupPlay("play-post", sPost, "pct-post");
-    window.onload = () => drawAxes();
-</script>
 
-<script type="module" src="./star.js"></script>
+    sPre.oninput = function() {
+      document.getElementById("pct-pre").innerText = this.value;
+      renderTrack();
+    };
+
+    sMS.oninput = function() {
+      document.getElementById("pct-ms").innerText = this.value;
+      renderTrack();
+    };
+
+    sPost.oninput = function() {
+      document.getElementById("pct-post").innerText = this.value;
+      renderTrack();
+    };
+
+    window.renderTrack = renderTrack;
+    window.addEventListener("load", renderTrack);
+  </script>
+
+  <script type="module" src="./star.js"></script>
 
 </body>
 </html>
