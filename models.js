@@ -145,7 +145,7 @@ export function postMainSequenceState_0p5(f01, ageOffsetYears = 0) {
   // Gentle giant targets
   const L_rg = L_ms_end * 80;
   const T_rg = 3600;
-  const R_rg = 28;
+  const R_rg = 15;
 
   // WD targets
   const L_wd_hot = 12;
@@ -204,7 +204,7 @@ export function postMainSequenceState_1p0(f01, ageOffsetYears = 0) {
   // Giant targets (smaller than your old 180)
   const L_rg = L_ms_end * 120;
   const T_rg = 3500;
-  const R_rg = 55;
+  const R_rg = 18;
 
   // WD targets
   const L_wd_hot = 45;
@@ -330,7 +330,7 @@ export function postMainSequenceState_massive(M, f01, ageOffsetYears = 0) {
 
   // supergiant targets (bounded so it doesn't go insane)
   const boost = Math.pow(M / 10.0, 0.35);
-  const R_sg = clamp(120 * boost, 90, 260);     // 10 -> ~120, 100 -> capped
+  const R_sg = clamp(45 * boost, 35, 90);     // 10 -> ~120, 100 -> capped
   const T_sg = 4200;                            // cool surface
   const L_sg = L_ms_end * clamp(6 * boost, 4, 18);
 
@@ -341,7 +341,7 @@ export function postMainSequenceState_massive(M, f01, ageOffsetYears = 0) {
   const T_ns = 7.0e5;
   const L_ns = 2e2;
 
-  const R_bh = 0.08; // purely visual; NOT physical Schwarzschild radius
+  const R_bh = 0.30; // purely visual; NOT physical Schwarzschild radius
   const T_bh = 0.0;
   const L_bh = 0.0;
 

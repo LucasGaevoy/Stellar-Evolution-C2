@@ -346,45 +346,36 @@ function visualColorTemperature(state) {
   const fc = smooth01(f01);
   const big = clamp(Math.log10(Math.max(0.1, M)), 0, 2);
 
-  // Base "old render.js" behaviour
-  const msStartBoost = 1.0 + 0.35 * big;
-  const msTimeCool = 1.0 + 0.55 * big * fc;
+  // ---------- shared anchor rules ----------
+  // These define the colour model endpoints that stages must agree on.
 
-  if (stage === "proto") {
-    // Important: proto should approach the SAME colour rule as MS when f01 -> 1
-    let protoStartBoost = msStartBoost;
-    let protoTimeCool = msTimeCool;
-
-    if (M <= 0.3) {
-      protoStartBoost *= 0.95;
-      protoTimeCool *= 0.95;
-    } else if (M <= 1.5) {
-      protoStartBoost *= 1.06;
-      protoTimeCool *= 1.00;
-    } else if (M >= 8.0) {
-      // massive proto stars start slightly warmer/whiter,
-      // but MUST converge back to MS rule by the end
-      const extra = 0.10 * (1.0 - fc);
-      protoStartBoost *= (1.0 + extra);
-    } else {
-      const extra = 0.06 * (1.0 - fc);
-      protoStartBoost *= (1.0 + extra);
-    }
-
-    return (T * protoStartBoost) / protoTimeCool;
-  }
-
-  if (stage === "ms") {
-    let startBoost = msStartBoost;
-    let timeCool = msTimeCool;
+  // Main-sequence START anchor (this must match pre-MS END)
+  function msStartTemp() {
+    let startBoost = 1.0 + 0.35 * big;
 
     if (M <= 0.8) {
       startBoost *= 0.95;
     } else if (M <= 1.2) {
-      // solar stars: keep near-white early, slightly warmer late
-      startBoost *= 1.02;
-      timeCool *= 1.02;
-    } else if (M >= 8) {
+      startBoost *= 1.00;
+    } else if (M >= 8.0) {
+      startBoost *= 1.08;
+    }
+
+    return T * startBoost;
+  }
+
+  // Main-sequence END anchor (this must match post-MS START)
+  function msEndTemp() {
+    let startBoost = 1.0 + 0.35 * big;
+    let timeCool = 1.0 + 0.55 * big;
+
+    if (M <= 0.8) {
+      startBoost *= 0.95;
+    } else if (M <= 1.2) {
+      // tweak here to make 1 M☉ slightly redder by the end of MS
+      startBoost *= 1.00;
+      timeCool *= 1.50;
+    } else if (M >= 8.0) {
       startBoost *= 1.08;
       timeCool *= 0.98;
     }
@@ -392,12 +383,47 @@ function visualColorTemperature(state) {
     return (T * startBoost) / timeCool;
   }
 
+  const T_ms0 = msStartTemp();
+  const T_ms1 = msEndTemp();
+
+  // ---------- stage rules ----------
+  if (stage === "proto") {
+    // pre-MS should smoothly converge to MS start
+    let T_proto0;
+
+    if (M <= 0.3) {
+      T_proto0 = T_ms0 * 0.82;
+    } else if (M <= 1.5) {
+      T_proto0 = T_ms0 * 0.93;
+    } else if (M >= 8.0) {
+      T_proto0 = T_ms0 * 0.96;
+    } else {
+      T_proto0 = T_ms0 * 0.95;
+    }
+
+    // EXACT continuity: proto end == ms start
+    return T_proto0 + (T_ms0 - T_proto0) * fc;
+  }
+
+  if (stage === "ms") {
+    // EXACT continuity: interpolate from ms start to ms end
+    return T_ms0 + (T_ms1 - T_ms0) * fc;
+  }
+
   if (stage === "giant") {
-    const giantCool = M >= 8 ? 0.72 + 0.18 * fc : 0.78 + 0.16 * fc;
-    return T * giantCool;
+    // post-MS start must equal MS end
+    let T_postEnd;
+    if (M >= 8.0) {
+      T_postEnd = T_ms1 * 0.58;   // red supergiant end colour
+    } else {
+      T_postEnd = T_ms1 * 0.70;   // red giant end colour
+    }
+
+    return T_ms1 + (T_postEnd - T_ms1) * fc;
   }
 
   if (stage === "wd") {
+    // hot white dwarf, but enter smoothly from the giant branch if used late in post-MS
     return Math.max(T, 14000);
   }
 
@@ -405,7 +431,7 @@ function visualColorTemperature(state) {
     return Math.max(T, 22000);
   }
 
-  return (T * msStartBoost) / msTimeCool;
+  return T_ms0;
 }
 
 function displayGlow(state) {
@@ -486,12 +512,12 @@ export function applyStarVisuals(render, state) {
   let c = colorFromTempK(T_for_color);
   const glow = displayGlow(state);
 
-  // tiny final correction only, to help giants read properly
+
   if (stage === "giant") {
     const giantTint = M >= 8
       ? new THREE.Color(0xff815a)
       : new THREE.Color(0xff8c60);
-    c = c.clone().lerp(giantTint, 0.10 + 0.18 * smooth01(f01));
+    c = c.clone().lerp(giantTint, 0.22 * smooth01(f01));
   }
 
   if (starMat?.uniforms?.uColor) {
@@ -595,7 +621,7 @@ export function setupZoomControls({
   aimCamera
 }) {
   const Z_NEAR = 1.2;
-  const Z_FAR = 40.0;
+  const Z_FAR = 90.0;
 
   function pctToZ(pct) {
     const t = clamp(pct / 100, 0, 1);
