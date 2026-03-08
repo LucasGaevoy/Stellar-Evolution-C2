@@ -2,7 +2,12 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 
 import { getTimeUI, getStarReadouts, createStageController } from "./ui.js";
-import { createStarScene, applyStarVisuals, setupDragControls, setupZoomControls } from "./render.js";
+import {
+  createStarScene,
+  applyStarVisuals,
+  setupDragControls,
+  setupZoomControls
+} from "./render.js";
 
 import {
   protostarState,
@@ -20,46 +25,48 @@ const [prePct, msPct, postPct] = timeUI.outputs;
 
 const container = document.getElementById("scene");
 const massSelect = document.getElementById("MassValues");
+
 const zoomInBtn = document.getElementById("zoomIn");
 const zoomOutBtn = document.getElementById("zoomOut");
 
 const readouts = getStarReadouts();
-
+const zoomSlider = readouts.zoomSliderEl;
+const zoomPctEl = readouts.zoomPctEl;
 
 const BASE_SPIN = 0.25;
 const STAR = { mass: 1.0, spin: BASE_SPIN };
-let activeStage = "pre";  
-let targetF01 = 0.0;      
-let currentF01 = 0.0;      
+
+let activeStage = "pre";
+let targetF01 = 0.0;
+let currentF01 = 0.0;
+
 const RENDER = createStarScene(container);
 
-const fColor = 1.0;
-activeStage = "pre";
-targetF01 = (parseFloat(preSlider.value) || 0) / 100;
+targetF01 = (parseFloat(preSlider?.value) || 0) / 100;
 currentF01 = targetF01;
-applyProtostar(currentF01);
 
 function smoothTo(current, target, dt, sharpness = 10) {
-  // Exponential smoothing: higher sharpness = faster catch-up
   const a = 1 - Math.exp(-sharpness * dt);
   return current + (target - current) * a;
 }
 
 function switchStage(stage, f01) {
-  const changed = (activeStage !== stage);
+  const changed = activeStage !== stage;
   activeStage = stage;
   targetF01 = f01;
 
-  // Snap only once when you switch stage (pre->ms->post), not every update tick
   if (changed) currentF01 = f01;
 }
 
 setupDragControls(RENDER.renderer.domElement, RENDER.starGroup);
+
 setupZoomControls({
   camera: RENDER.camera,
   domElement: RENDER.renderer.domElement,
   zoomInBtn,
   zoomOutBtn,
+  zoomSlider,
+  zoomPctEl,
   aimCamera: RENDER.aimCamera,
 });
 
@@ -70,13 +77,54 @@ function formatAge(years) {
   return `${(years / 1e9).toFixed(2)} billion years`;
 }
 
+function setCompositionReadouts(H, He) {
+  if (readouts.hPctEl) readouts.hPctEl.textContent = `${Math.round(H)}%`;
+  if (readouts.hePctEl) readouts.hePctEl.textContent = `${Math.round(He)}%`;
+}
+
+function compositionForStage(stage, f01, remnant = null) {
+  if (stage === "pre") {
+    return { H: 74, He: 24 };
+  }
+
+  if (stage === "ms") {
+    return {
+      H: 74 + (10 - 74) * f01,
+      He: 24 + (88 - 24) * f01
+    };
+  }
+
+  if (stage === "post") {
+    if (remnant === "ns" || remnant === "bh") {
+      return { H: 0, He: 0 };
+    }
+    return {
+      H: 10 + (0 - 10) * f01,
+      He: 88 + (98 - 88) * f01
+    };
+  }
+
+  return { H: 74, He: 24 };
+}
+
 function setReadoutsFromState({ L, T, ageYears }, stageName) {
   const absMag = absMagnitudeFromLuminosity(L);
-  if (readouts.absMagEl) readouts.absMagEl.textContent = Number.isFinite(absMag) ? absMag.toFixed(2) : "—";
-  if (readouts.surfTempEl) readouts.surfTempEl.textContent = Number.isFinite(T) ? `${Math.round(T)} K` : "—";
-  if (readouts.stageEl) readouts.stageEl.textContent = stageName ?? "—";
-  if (readouts.ageEl) readouts.ageEl.textContent = formatAge(ageYears);
-  if (readouts.massEl) readouts.massEl.textContent = `${STAR.mass.toFixed(STAR.mass < 1 ? 1 : 0)} M☉`;
+
+  if (readouts.absMagEl) {
+    readouts.absMagEl.textContent = Number.isFinite(absMag) ? absMag.toFixed(2) : "—";
+  }
+  if (readouts.surfTempEl) {
+    readouts.surfTempEl.textContent = Number.isFinite(T) ? `${Math.round(T)} K` : "—";
+  }
+  if (readouts.stageEl) {
+    readouts.stageEl.textContent = stageName ?? "—";
+  }
+  if (readouts.ageEl) {
+    readouts.ageEl.textContent = formatAge(ageYears);
+  }
+  if (readouts.massEl) {
+    readouts.massEl.textContent = `${STAR.mass.toFixed(STAR.mass < 1 ? 1 : 0)} M☉`;
+  }
 }
 
 function resetOtherStages(which) {
@@ -92,23 +140,59 @@ function resetOtherStages(which) {
     postSlider.value = "0";
     postPct.textContent = "0";
   }
+
+  window.renderTrack?.();
+}
+
+function resetToInitialStage() {
+  preSlider.value = "0";
+  msSlider.value = "0";
+  postSlider.value = "0";
+
+  prePct.textContent = "0";
+  msPct.textContent = "0";
+  postPct.textContent = "0";
+
+  activeStage = "pre";
+  targetF01 = 0;
+  currentF01 = 0;
+
+  window.renderTrack?.();
 }
 
 function applyProtostar(f01) {
   const state = protostarState(STAR.mass, f01, 0);
   STAR.spin = BASE_SPIN * (state.spinMul ?? 1.0);
-  applyStarVisuals(RENDER, { ...state, M: STAR.mass, f01, stage: "proto" });
+
+  applyStarVisuals(RENDER, {
+    ...state,
+    M: STAR.mass,
+    f01,
+    stage: "proto"
+  });
+
+  const comp = compositionForStage("pre", f01);
+  setCompositionReadouts(comp.H, comp.He);
+
   setReadoutsFromState(state, "Protostar");
-  if (window.hrChart) window.hrChart.record("preMS",f01,state.L,state.T);
 }
 
 function applyMainSequence(f01) {
   const preAge = protostarDurationYears(STAR.mass);
   const state = mainSequenceState(STAR.mass, f01, preAge);
   STAR.spin = BASE_SPIN * (state.spinMul ?? 1.0);
-  applyStarVisuals(RENDER, { ...state, M: STAR.mass, f01, stage: "ms" });
+
+  applyStarVisuals(RENDER, {
+    ...state,
+    M: STAR.mass,
+    f01,
+    stage: "ms"
+  });
+
+  const comp = compositionForStage("ms", f01);
+  setCompositionReadouts(comp.H, comp.He);
+
   setReadoutsFromState(state, "Main sequence");
-  if (window.hrChart) window.hrChart.record("MS",f01,state.L,state.T);
 }
 
 function applyPostMainSequence(f01) {
@@ -117,26 +201,39 @@ function applyPostMainSequence(f01) {
   const offset = preAge + msAge;
 
   const state = postMainSequenceState(STAR.mass, f01, offset);
-    STAR.spin = 0.25 * (state.spinMul ?? 1.0);
+  STAR.spin = BASE_SPIN * (state.spinMul ?? 1.0);
+
+  const comp = compositionForStage("post", f01, state?.remnant ?? null);
+  setCompositionReadouts(comp.H, comp.He);
 
   let stageName = "After main sequence";
-  if (state?.remnant === "giant") stageName = "Red giant";
+  if (state?.remnant === "giant") {
+    stageName = STAR.mass >= 8 ? "Red supergiant" : "Red giant";
+  }
   if (state?.remnant === "wd") stageName = "White dwarf";
   if (state?.remnant === "ns") stageName = "Neutron star";
   if (state?.remnant === "bh") stageName = "Black hole";
 
-  const fColor = 1.0 + 0.2 * f01; // small continuation (tweak 0.2–0.6)
-  applyStarVisuals(RENDER, { ...state, M: STAR.mass, f01, fColor, stage: state?.remnant ?? "post" });
+  applyStarVisuals(RENDER, {
+    ...state,
+    M: STAR.mass,
+    f01,
+    stage: state?.remnant ?? "post"
+  });
+
   setReadoutsFromState(state, stageName);
-  if (window.hrChart) window.hrChart.record("postMS",f01,state.L,state.T);
 }
 
 function setMass(M) {
   if (!Number.isFinite(M)) return;
   STAR.mass = M;
+  resetToInitialStage();
+  applyProtostar(0);
 }
 
-massSelect?.addEventListener("change", () => setMass(parseFloat(massSelect.value)));
+massSelect?.addEventListener("change", () => {
+  setMass(parseFloat(massSelect.value));
+});
 
 prePct.textContent = preSlider?.value ?? "0";
 msPct.textContent = msSlider?.value ?? "0";
@@ -175,30 +272,34 @@ createStageController({
   intervalMs: 150,
 });
 
-if (massSelect) setMass(parseFloat(massSelect.value));
-applyProtostar((parseFloat(preSlider.value) || 0) / 100);
+if (massSelect) {
+  setMass(parseFloat(massSelect.value));
+} else {
+  applyProtostar((parseFloat(preSlider?.value) || 0) / 100);
+}
 
 let lastT = performance.now();
 const toCam = new THREE.Vector3();
-if (RENDER.blackHole && RENDER.blackHole.disk?.visible) {
-    RENDER.blackHole.update(t * 0.001, toCam, RENDER.starGroup.scale.x);
-}
 
 function animate(t) {
   const dt = (t - lastT) / 1000;
-  currentF01 = smoothTo(currentF01, targetF01, dt, 12); // tweak 8–20
+  lastT = t;
+
+  currentF01 = smoothTo(currentF01, targetF01, dt, 12);
 
   if (activeStage === "pre") applyProtostar(currentF01);
   else if (activeStage === "ms") applyMainSequence(currentF01);
   else applyPostMainSequence(currentF01);
-  lastT = t;
 
   RENDER.starGroup.rotation.y += STAR.spin * dt;
 
   const mat = RENDER.starMat;
-  if (mat?.uniforms?.uTime) mat.uniforms.uTime.value = t * 0.001;
+  if (mat?.uniforms?.uTime) {
+    mat.uniforms.uTime.value = t * 0.001;
+  }
 
   toCam.subVectors(RENDER.camera.position, RENDER.starGroup.position).normalize();
+
   RENDER.halo.position
     .copy(RENDER.starGroup.position)
     .addScaledVector(toCam, -0.15 * RENDER.starGroup.scale.x);
@@ -208,7 +309,12 @@ function animate(t) {
     RENDER.shell.position.addScaledVector(toCam, -0.15 * RENDER.starGroup.scale.x);
   }
 
+  if (RENDER.blackHole && RENDER.blackHole.disk?.visible) {
+    RENDER.blackHole.update(t * 0.001, toCam, RENDER.starGroup.scale.x);
+  }
+
   RENDER.renderer.render(RENDER.scene, RENDER.camera);
   requestAnimationFrame(animate);
 }
+
 requestAnimationFrame(animate);
